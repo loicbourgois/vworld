@@ -25,6 +25,7 @@ pub struct Constants {
     pub muscles_use_output: bool,
     pub display_simulation_logs: bool,
     pub use_distance_traveled_as_fitness_function: bool,
+    pub thread_count: u32,
 }
 #[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct EntityConstants {
