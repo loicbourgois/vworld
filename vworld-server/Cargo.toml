@@ -1,0 +1,20 @@
+[package]
+name = "vworld-server"
+version = "0.0.1"
+authors = ["loicbourgois <loic@Bourgois.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = { version = "1.0.116", features = ["derive"]}
+serde_json = "1.0.57"
+tungstenite = "0.11.1"
+rand = "0.7.3"
+uuid = {version = "0.8.1", features = ["v4"]}
+hashers = "1.0.1"
+#fasthash = "0.2.8"
+
+[[bin]]
+name = "vworld-server"
+path = "src/main.rs"

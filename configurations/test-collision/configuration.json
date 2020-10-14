@@ -1,0 +1,41 @@
+{
+  "chunk_width": 1,
+  "chunk_height": 1,
+  "start": {
+    "x": 0,
+    "y": 0
+  },
+  "constants": {
+    "collision_push_rate": 0.00001
+  },
+  "servers": {
+    "0,0": {
+      "entities": [
+        {
+          "particles": [
+            {
+              "x": 0.5,
+              "y": 0.5,
+              "diameter": 0.02,
+              "mass": 0.02,
+              "type_": "default"
+            },
+            {
+              "x": 0.51,
+              "y": 0.5,
+              "diameter": 0.02,
+              "mass": 0.02,
+              "type_": "default"
+            }
+          ],
+          "links": [
+            {
+              "pids": [0, 1],
+              "strengh": 0.1
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

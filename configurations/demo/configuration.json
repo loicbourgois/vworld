@@ -1,0 +1,63 @@
+{
+  "width": 1,
+  "height": 1,
+  "start": {
+    "x": 0,
+    "y": 0
+  },
+  "constants": {
+    "use_distance_traveled_as_fitness_function": true,
+    "display_simulation_logs": false,
+    "muscles_use_output": false,
+    "collision_push_rate": 0.2,
+    "drag_coefficient": 10.0,
+    "link_length_coefficient": 1.01,
+    "link_strengh_default": 10.5,
+    "diameter_muscle_change_rate": 0.1,
+    "delta_time": 0.01,
+    "default_mass": 0.1,
+    "default_diameter": 0.01,
+    "min_body_parts_count": 3,
+    "max_body_parts_count": 20,
+    "max_stats_count": 1000,
+    "plant": {
+      "mutation_rate": 1.0,
+      "max_mutation_strength": 0.05,
+      "new_dna_rate": 0.0,
+      "min_count": 1000,
+      "energy_drop_rate_per_tick": 0.000,
+      "energy_drop_rate_per_tick_circle": 0.0
+    },
+    "bloop": {
+      "gene_random_mutation_rate": 0.02,
+      "gene_progressive_mutation_rate": 1.0,
+      "gene_progressive_mutation_strength": 0.05,
+      "new_dna_rate": 0.1,
+      "min_count": 50,
+      "energy_drop_rate_per_tick": 0.0001,
+      "starting_energy": 0.2
+    },
+    "gravity": {
+      "x": 0.0,
+      "y": 0.0
+    },
+    "energy_max": 1.0,
+    "energy_min": 0.0,
+    "eye_sight_length": 0.02,
+    "mouth_energy_eating_rate_per_second": 1.0,
+    "enable_auto_link_6": true,
+    "destroy_unstable_entities": true
+  },
+  "servers": {
+    "0,0": {
+      "entities": [],
+      "particles": [
+        {
+          "type_": "sun",
+          "x": 0.5,
+          "y": 0.5
+        }
+      ]
+    }
+  }
+}

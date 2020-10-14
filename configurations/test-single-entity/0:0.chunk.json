@@ -1,0 +1,92 @@
+{
+  "entities": [
+    {
+      "entities": [],
+      "particles": [
+        {
+          "x": 0.55,
+          "y": 0.51,
+          "diameter": 0.02,
+          "mass": 0.02,
+          "type_": "default"
+        },
+        {
+          "x": 0.5,
+          "y": 0.52,
+          "diameter": 0.02,
+          "mass": 0.02,
+          "type_": "default"
+        },
+        {
+          "x": 0.5,
+          "y": 0.53,
+          "diameter": 0.02,
+          "mass": 0.02,
+          "type_": "muscle"
+        },
+        {
+          "x": 0.53,
+          "y": 0.531,
+          "diameter": 0.02,
+          "mass": 0.02,
+          "type_": "default"
+        },
+        {
+          "x": 0.51,
+          "y": 0.532,
+          "diameter": 0.02,
+          "mass": 0.02,
+          "type_": "default"
+        }
+      ],
+      "links": [
+        {
+          "pids": [
+            0,
+            1
+          ],
+          "strengh": 1
+        },
+        {
+          "pids": [
+            1,
+            2
+          ],
+          "strengh": 1.1
+        },
+        {
+          "pids": [
+            2,
+            0
+          ],
+          "strengh": 1.1
+        },
+        {
+          "pids": [
+            2,
+            3
+          ],
+          "strengh": 1.1
+        },
+        {
+          "pids": [
+            3,
+            4
+          ],
+          "strengh": 1.1
+        }
+      ]
+    }
+  ],
+  "x": 0,
+  "y": 0,
+  "constants": {
+    "collision_push_rate": 0.001,
+    "drag_coefficient": 100.5,
+    "link_length_coefficient": 0.9,
+    "diameter_muscle_change_rate": 1,
+    "delta_time": 0.0001,
+    "default_mass": 0.01,
+    "default_diameter": 0.01
+  }
+}
