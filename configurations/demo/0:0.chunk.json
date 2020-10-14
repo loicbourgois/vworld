@@ -21,7 +21,7 @@
     "delta_time": 0.01,
     "default_mass": 0.1,
     "default_diameter": 0.01,
-    "min_body_parts_count": 20,
+    "min_body_parts_count": 3,
     "max_body_parts_count": 20,
     "max_stats_count": 1000,
     "plant": {
