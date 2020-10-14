@@ -1,4 +1,4 @@
-# Welcome to VWorld - developer's guide
+# VWorld - developer's guide
 
 ## Useful scripts
 
