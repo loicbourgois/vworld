@@ -47,10 +47,10 @@ impl Vector {
     //
     // Multiply the vector by a floating point number
     //
-    pub fn muliply(&mut self, multiplier: f64) {
-        self.x *= multiplier;
-        self.y *= multiplier;
-    }
+    //pub fn muliply(&mut self, multiplier: f64) {
+    //    self.x *= multiplier;
+    //    self.y *= multiplier;
+    //}
 
     //
     // Return a normalized version of the vector
@@ -83,9 +83,9 @@ impl Vector {
     //
     // Returns the dot product of two vectors
     //
-    pub fn dot(v1: Vector, v2: Vector) -> f64 {
-        v1.x * v2.x + v1.y * v2.y
-    }
+    //pub fn dot(v1: Vector, v2: Vector) -> f64 {
+    //    v1.x * v2.x + v1.y * v2.y
+    //}
 
     //
     // Helper function to get a normalized vector
