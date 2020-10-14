@@ -10,7 +10,6 @@ use crate::entity::Entity;
 use crate::get_next_gene;
 use std::collections::HashSet;
 use std::collections::HashMap;
-use rand::Rng;
 use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize)]
 pub struct Color {
@@ -117,10 +116,10 @@ fn get_cell_type(genes: [f64; 4]) -> ParticleType {
         _ => ParticleType::Default
     }
 }
-pub fn add_second_particle(chunk: &mut Chunk, euuid: &euuid, mut rng: &mut rand::prelude::ThreadRng, puuid_A: puuid) {
+pub fn add_second_particle(chunk: &mut Chunk, euuid: &euuid, mut rng: &mut rand::prelude::ThreadRng, puuid_a: puuid) {
     let entity = chunk.entities.get_mut(euuid).unwrap();
     let energy = chunk.constants.bloop.starting_energy;
-    let puuid_B = bob::new_v4().as_u128();
+    let puuid_b = bob::new_v4().as_u128();
     let luuid = bob::new_v4().as_u128();
     let type_ = get_cell_type([
         get_next_gene(entity, &mut rng),
@@ -128,8 +127,8 @@ pub fn add_second_particle(chunk: &mut Chunk, euuid: &euuid, mut rng: &mut rand:
         get_next_gene(entity, &mut rng),
         get_next_gene(entity, &mut rng)
     ]);
-    chunk.particles.insert(puuid_B, Particle{
-        puuid: puuid_B,
+    chunk.particles.insert(puuid_b, Particle{
+        puuid: puuid_b,
         x: entity.x_start + chunk.constants.default_diameter,
         y: entity.y_start,
         x_old: entity.x_start + chunk.constants.default_diameter,
@@ -149,8 +148,8 @@ pub fn add_second_particle(chunk: &mut Chunk, euuid: &euuid, mut rng: &mut rand:
         bias_weight: get_next_gene(entity, &mut rng),
         is_colliding_other_entity: false,
     });
-    entity.puuids.insert(puuid_B);
-    add_link(chunk, *euuid, luuid, puuid_A, puuid_B, &mut rng);
+    entity.puuids.insert(puuid_b);
+    add_link(chunk, *euuid, luuid, puuid_a, puuid_b, &mut rng);
 }
 pub fn add_particle(chunk: &mut Chunk, euuid: &euuid, puuid_pair: [puuid; 2], mut rng: &mut rand::prelude::ThreadRng) {
     //let entity = chunk.entities.get_mut(euuid).unwrap();
@@ -166,11 +165,11 @@ pub fn add_particle(chunk: &mut Chunk, euuid: &euuid, puuid_pair: [puuid; 2], mu
     let puuid_c = bob::new_v4().as_u128();
     let luuid_a_c = bob::new_v4().as_u128();
     let luuid_b_c = bob::new_v4().as_u128();
-    let p_A = &chunk.particles[&puuid_a];
-    let p_B = &chunk.particles[&puuid_b];
-    let normalized_vector = Vector::get_normalized_vector(p_A.x, p_A.y, p_B.x, p_B.y);
-    let x = (p_A.x + p_B.x) * 0.5 - normalized_vector.unwrap().y * chunk.constants.default_diameter;
-    let y = (p_A.y + p_B.y) * 0.5 + normalized_vector.unwrap().x * chunk.constants.default_diameter;
+    let p_a = &chunk.particles[&puuid_a];
+    let p_b = &chunk.particles[&puuid_b];
+    let normalized_vector = Vector::get_normalized_vector(p_a.x, p_a.y, p_b.x, p_b.y);
+    let x = (p_a.x + p_b.x) * 0.5 - normalized_vector.unwrap().y * chunk.constants.default_diameter;
+    let y = (p_a.y + p_b.y) * 0.5 + normalized_vector.unwrap().x * chunk.constants.default_diameter;
     chunk.entities.get_mut(euuid).unwrap().puuids.insert(puuid_c);
     chunk.particles.insert(puuid_c, Particle{
         puuid: puuid_c,
@@ -216,11 +215,11 @@ pub fn add_particle(chunk: &mut Chunk, euuid: &euuid, puuid_pair: [puuid; 2], mu
             } else if links_count == 6 {
                 let mut link_counts_per_neighbour: HashMap<puuid, u32> = HashMap::new();
                 let links = &chunk.particles.get(&puuid).unwrap().links;
-                for (luuid, particle_link) in links {
+                for particle_link in links.values() {
                     link_counts_per_neighbour.insert(particle_link.puuid_linked, 0);
                 }
-                for (luuid_a, particle_link_a) in links {
-                    for (luuid_b, particle_link_b) in links {
+                for particle_link_a in links.values() {
+                    for particle_link_b in links.values() {
                         let puuid_a = particle_link_a.puuid_linked;
                         let puuid_b = particle_link_b.puuid_linked;
                         if puuid_a < puuid_b && particles_are_paired(chunk.entities.get(euuid).unwrap(), puuid_a, puuid_b) {
@@ -284,11 +283,9 @@ pub fn add_plant_particle(chunk: &mut Chunk, euuid: &euuid, mut rng: &mut rand::
     let entity = chunk.entities.get_mut(euuid).unwrap();
     let energy = 1.0;
     let puuid = bob::new_v4().as_u128();
+    let red = get_next_gene(entity, &mut rng) * 0.0;
     let green = get_next_gene(entity, &mut rng) * 0.5 + 0.5;
     let blue = get_next_gene(entity, &mut rng) * 0.5 + 0.5;
-    let red = get_next_gene(entity, &mut rng) * 0.0;
-    let color_min = red.min(green).min(blue);
-    let color_delta = red.max(green).max(blue) - color_min;
     chunk.particles.insert(puuid, Particle{
         puuid: puuid,
         x: entity.x_start,
@@ -334,28 +331,28 @@ fn add_link(
     chunk: &mut Chunk,
     euuid: euuid,
     luuid_a_b: luuid,
-    puuid_A: puuid,
-    puuid_B: puuid,
+    puuid_a: puuid,
+    puuid_b: puuid,
     mut rng: &mut rand::prelude::ThreadRng
 ) {
-    let mut entity = chunk.entities.get_mut(&euuid).unwrap();
-    add_pair(&mut entity.pairs, puuid_A, puuid_B);
-    add_pair(&mut entity.pairs, puuid_B, puuid_A);
-    chunk.particles.get_mut(&puuid_A).unwrap().links.insert(luuid_a_b, ParticleLink{
+    let entity = chunk.entities.get_mut(&euuid).unwrap();
+    add_pair(&mut entity.pairs, puuid_a, puuid_b);
+    add_pair(&mut entity.pairs, puuid_b, puuid_a);
+    chunk.particles.get_mut(&puuid_a).unwrap().links.insert(luuid_a_b, ParticleLink{
         luuid: luuid_a_b,
-        puuid_linked: puuid_B,
+        puuid_linked: puuid_b,
         weight: get_next_gene(entity, &mut rng) * 2.0 - 1.0,
     });
-    chunk.particles.get_mut(&puuid_B).unwrap().links.insert(luuid_a_b, ParticleLink{
+    chunk.particles.get_mut(&puuid_b).unwrap().links.insert(luuid_a_b, ParticleLink{
         luuid: luuid_a_b,
-        puuid_linked: puuid_A,
+        puuid_linked: puuid_a,
         weight: get_next_gene(entity, &mut rng) * 2.0 - 1.0,
     });
     chunk.links.insert(luuid_a_b,
         Link{
-            puuids: [puuid_A, puuid_B],
+            puuids: [puuid_a, puuid_b],
             strengh: chunk.constants.link_strengh_default,
-            puuids_str: [format!("{}", puuid_A), format!("{}", puuid_B)],
+            puuids_str: [format!("{}", puuid_a), format!("{}", puuid_b)],
     });
 }
 fn add_pair(pairs: &mut HashMap<puuid, HashSet<puuid>>, puuid_a: puuid, puuid_b: puuid) {

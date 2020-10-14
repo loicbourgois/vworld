@@ -1,10 +1,10 @@
+#![deny(warnings)]
 mod point;
 mod vector;
 mod particle;
 use crate::particle::Particle;
 use crate::particle::ParticleData;
 use crate::particle::ParticleType;
-use crate::particle::ParticleLink;
 use crate::particle::add_first_particle;
 use crate::particle::add_second_particle;
 use crate::particle::add_particle;
@@ -16,10 +16,8 @@ use crate::entity::EntityType;
 use crate::entity::get_next_gene;
 use crate::entity::add_new_bloop;
 use crate::entity::add_new_plant;
-use crate::entity::add_new_plant_at;
 mod constants;
 use crate::constants::Constants;
-use tungstenite::Message;
 use std::net::TcpListener;
 use std::thread;
 use tungstenite::server::accept;
@@ -33,9 +31,13 @@ use rand::prelude::*;
 use ::uuid::Uuid as bob;
 use std::collections::HashMap;
 use std::collections::HashSet;
+#[allow(non_camel_case_types)]
 type uuid = u128;
+#[allow(non_camel_case_types)]
 type puuid = uuid;
+#[allow(non_camel_case_types)]
 type euuid = uuid;
+#[allow(non_camel_case_types)]
 type luuid = uuid;
 #[derive(Serialize, Deserialize)]
 pub struct Chunk {
@@ -87,7 +89,6 @@ struct Link {
 }
 struct Collision {
     puuids: [puuid; 2],
-    v: Vector,
     delta_vector: Vector,
     collision_x: f64,
 }
@@ -116,9 +117,6 @@ struct BestDnaStat {
 }
 fn create_chunk_from_configuration_str(configuration_str: &str) -> Chunk {
     let configuration: ChunkConfiguration = json::from_str(&configuration_str).unwrap();
-    let i_max = 4;
-    let j_max = 4;
-    let mut id = 0;
     let mut chunk = Chunk {
         total_energy: 0.0,
         width: 1.0,
@@ -156,10 +154,10 @@ fn create_chunk_from_configuration_str(configuration_str: &str) -> Chunk {
         },
         stats: Vec::new(),
     };
-    for i in 0..configuration.constants.bloop.min_count {
+    for _ in 0..configuration.constants.bloop.min_count {
         add_new_bloop(&mut chunk)
     }
-    for i in 0..configuration.constants.plant.min_count {
+    for _ in 0..configuration.constants.plant.min_count {
         add_new_plant(&mut chunk, None, None);
     }
     /*add_new_plant(&mut chunk, Some(Point{
@@ -175,7 +173,7 @@ fn get_free_pairs(entity: &Entity) -> Vec<[puuid; 2]> {
             match entity.pairs_taken.get(puuid_a) {
                 Some(hashset_taken) => {
                     match hashset_taken.get(puuid_b) {
-                        Some(x) => (),
+                        Some(_) => (),
                         None => v.push([*puuid_a, *puuid_b])
                     }
                 }, None => v.push([*puuid_a, *puuid_b])
@@ -201,25 +199,18 @@ fn main() {
     let host = format!("{}:{}", address, port);
     let server = TcpListener::bind(host.to_owned()).unwrap();
     let chunk = Arc::new(RwLock::new(create_chunk_from_configuration_str(&chunk_configuration_str)));
-    let period_ms = 2000;
-    let period_ms_f64 = period_ms as f64;
     println!("starting server...");
-    let go = true;
     {
         let chunk_clone = Arc::clone(&chunk);
         thread::spawn(move || {
-            let mut now = SystemTime::now();
             let mut rng = rand::thread_rng();
-            let mut last_now = now;
             let start_time = SystemTime::now();
             // Tick loop
             loop {
-                last_now = now;
-                now = SystemTime::now();
                 // Update chunk
                 {
                     let mut chunk = chunk_clone.write().unwrap();
-                    chunk.real_time_ms = now.duration_since(start_time).unwrap().as_millis();
+                    chunk.real_time_ms = SystemTime::now().duration_since(start_time).unwrap().as_millis();
                     let delta_time = chunk.constants.delta_time;
                     let simulation_time_s = chunk.step as f64 * chunk.constants.delta_time;
                     let real_time_s = chunk.real_time_ms as f64 * 0.001;
@@ -229,7 +220,7 @@ fn main() {
                     let mut entities_by_type: HashMap<EntityType, i32> = HashMap::new();
                     entities_by_type.insert(EntityType::Plant, 0);
                     entities_by_type.insert(EntityType::Bloop, 0);
-                    for (euuid, entity) in chunk.entities.iter() {
+                    for entity in chunk.entities.values() {
                         match &entity.type_ {
                             type_ => *entities_by_type.get_mut(&type_).unwrap() += 1
                         }
@@ -244,7 +235,7 @@ fn main() {
                         add_new_plant(&mut chunk, None, None);
                     }
                     let bloop_to_add_count = chunk.constants.bloop.min_count as i32 - entities_by_type.get(&EntityType::Bloop).unwrap();
-                    for i in 0..bloop_to_add_count {
+                    for _ in 0..bloop_to_add_count {
                         add_new_bloop(&mut chunk);
                     }
                     // Update output
@@ -252,7 +243,7 @@ fn main() {
                     for (puuid, particle) in chunk.particles.iter() {
                         let mut output = particle.bias_weight;
                         let mut divisor = particle.bias_weight.abs();
-                        for (luuid, link) in particle.links.iter() {
+                        for link in particle.links.values() {
                             output += link.weight * chunk.particles.get(&link.puuid_linked).unwrap().output;
                             divisor += link.weight.abs();
                         }
@@ -284,17 +275,15 @@ fn main() {
                     }
                     // Muscle action
                     let diameter_muscle_change_rate = chunk.constants.diameter_muscle_change_rate;
-                    let amplitude = 0.25;
-                    let plus = 0.75;
                     let muscles_use_output = chunk.constants.muscles_use_output;
-                    for (puuid, particle) in &mut chunk.particles.iter_mut() {
+                    for particle in &mut chunk.particles.values_mut() {
                         match particle.type_ {
                             ParticleType::Muscle => {
                                 particle.diameter = if muscles_use_output {
                                     particle.base_diameter * (1.0 - particle.output * 0.5)
                                 } else {
                                     let sin = (simulation_time_s * particle.frequency * 10.0 + particle.phase * 10.0).sin();
-                                    particle.base_diameter * (sin * 0.25 + plus)
+                                    particle.base_diameter * (sin * 0.25 + 0.75)
                                 }
                             },
                             ParticleType::MuscleInverted => {
@@ -320,7 +309,7 @@ fn main() {
                     let plant_energy_drop_rate_per_tick_circle = chunk.constants.plant.energy_drop_rate_per_tick_circle;
                     let energy_min = chunk.constants.energy_min;
                     let mut puuid_pairs: Vec<[puuid; 2]> = Vec::new();
-                    for (luuid, link) in chunk.links.iter() {
+                    for link in chunk.links.values() {
                         puuid_pairs.push(link.puuids);
                     }
                     // Energy transfer
@@ -338,7 +327,7 @@ fn main() {
                     // Energy drop
                     // Adjust plant size
                     let energy_max = chunk.constants.energy_max;
-                    for (puuid, particle) in &mut chunk.particles.iter_mut() {
+                    for particle in &mut chunk.particles.values_mut() {
                         match particle.type_ {
                             ParticleType::Plant => {
                                 let plant_drop_rate = plant_energy_drop_rate_per_tick
@@ -401,8 +390,7 @@ fn main() {
                         distance_traveled: 0.0,
                         dna: Vec::new(),
                     };
-                    for (euuid, entity) in chunk.entities.iter() {
-                        let entity = chunk.entities.get(euuid).unwrap();
+                    for entity in chunk.entities.values() {
                         match entity.type_ {
                             EntityType::Plant => {
                                 // Do nothing
@@ -481,9 +469,9 @@ fn main() {
                     }
                     // Remove links
                     for luuid in links_to_remove.iter() {
-                    for (puuid, particle) in chunk.particles.iter_mut() {
-                        particle.links.remove(luuid);
-                    }
+                        for particle in chunk.particles.values_mut() {
+                            particle.links.remove(luuid);
+                        }
                         chunk.links.remove(&luuid);
                     }
                     // Remove particles
@@ -500,7 +488,7 @@ fn main() {
                     for puuid in chunk.particles.keys() {
                         forces_by_puuid.insert(*puuid, Vector::new(&Point{x:0.0, y:0.0}, &Point{x:0.0, y:0.0}));
                     }
-                    for (luuid, link) in chunk.links.iter() {
+                    for link in chunk.links.values() {
                         let p1 = &chunk.particles[&link.puuids[0]];
                         let p2 = &chunk.particles[&link.puuids[1]];
                         let length = (p1.diameter + p2.diameter) * 0.5 * chunk.constants.link_length_coefficient;
@@ -532,23 +520,23 @@ fn main() {
                     }
                     // Compute collisions
                     let mut collisions: Vec<Collision> = Vec::new();
-                    let PLOP = 75;
-                    let mut divisions: Vec<Vec<Vec<puuid>>> = vec![vec![Vec::new(); PLOP]; PLOP];
+                    let collision_sections_count = 75;
+                    let mut divisions: Vec<Vec<Vec<puuid>>> = vec![vec![Vec::new(); collision_sections_count]; collision_sections_count];
                     let mut divisions_by_puuid: HashMap<puuid, [usize; 2]> = HashMap::new();
                     for (puuid, p) in chunk.particles.iter() {
                         let x = if p.x < 0.0 {
                             0
                         } else if p.x >= 1.0 {
-                            PLOP - 1
+                            collision_sections_count - 1
                         } else {
-                            (p.x * PLOP as f64).abs() as usize
+                            (p.x * collision_sections_count as f64).abs() as usize
                         };
                         let y = if p.y < 0.0 {
                             0
                         } else if p.y >= 1.0 {
-                            PLOP - 1
+                            collision_sections_count - 1
                         } else {
-                            (p.y * PLOP as f64).abs() as usize
+                            (p.y * collision_sections_count as f64).abs() as usize
                         };
                         divisions[x][y].push(*puuid);
                         divisions_by_puuid.insert(*puuid, [x, y]);
@@ -557,9 +545,9 @@ fn main() {
                         let i = division_coords[0];
                         let j = division_coords[1];
                         let targets_x_start = if i == 0 { 0 } else {i-1};
-                        let targets_x_end = (i+2).min(PLOP);
+                        let targets_x_end = (i+2).min(collision_sections_count);
                         let targets_y_start = if j == 0 { 0 } else {j-1};
-                        let targets_y_end = (j+2).min(PLOP);
+                        let targets_y_end = (j+2).min(collision_sections_count);
                         for x in targets_x_start..targets_x_end {
                             for y in targets_y_start..targets_y_end {
                                 let targets = &divisions[x][y];
@@ -576,7 +564,6 @@ fn main() {
                                             let delta_vector = v.normalized().multiplied(delta);
                                             collisions.push(Collision{
                                                 puuids: [*puuid_1,*puuid_2],
-                                                v: v,
                                                 delta_vector: delta_vector,
                                                 collision_x: delta_vector.x * chunk.constants.collision_push_rate
                                             });
@@ -586,12 +573,6 @@ fn main() {
                                     }
                                 }
                             }
-                        }
-                    }
-                    // Keep this, it make it faster, don't know why
-                    let mut collide_pairs: HashMap<puuid, HashSet<puuid>> = HashMap::new();
-                    for (puuid_1, puuid_2s) in collide_pairs.iter() {
-                        for puuid_2 in puuid_2s.iter() {
                         }
                     }
                     // Reset is_colliding_other_entity
@@ -655,7 +636,7 @@ fn main() {
                     //}
                     // Update entity position
                     let mut entities_coord: HashMap<euuid, (f64, f64)> = HashMap::new();
-                    for (puuid, particle) in chunk.particles.iter() {
+                    for particle in chunk.particles.values() {
                         match particle.type_ {
                             ParticleType::Heart => {
                                 entities_coord.insert(particle.euuid, (particle.x, particle.y));
@@ -672,14 +653,14 @@ fn main() {
                     }
                     // Update cells data
                     let mut cells_data: HashMap<puuid, ParticleData> = HashMap::new();
-                    for (puuid, particle_a) in chunk.particles.iter() {
+                    for particle_a in chunk.particles.values() {
                         match particle_a.type_ {
                             ParticleType::Eye => {
                                 let mut direction = Vector {
                                     x: 0.0,
                                     y: 0.0,
                                 };
-                                for (luuid, particle_link) in particle_a.links.iter() {
+                                for particle_link in particle_a.links.values() {
                                     let particle_b = chunk.particles.get(&particle_link.puuid_linked).unwrap();
                                     let direction_tmp = Vector::new_2(
                                         particle_b.x, particle_b.y,
@@ -699,7 +680,7 @@ fn main() {
                                     x: 0.0,
                                     y: 0.0,
                                 };
-                                for (luuid, particle_link) in particle_a.links.iter() {
+                                for particle_link in particle_a.links.values() {
                                     let particle_b = chunk.particles.get(&particle_link.puuid_linked).unwrap();
                                     let direction_tmp = Vector::new_2(
                                         particle_b.x, particle_b.y,
@@ -735,7 +716,7 @@ fn main() {
                     chunk.links_count = chunk.links.len() as u32;
                     chunk.entities_count = chunk.entities.len() as u32;
                     let mut total_energy = 0.0;
-                    for (puuid, particle) in chunk.particles.iter() {
+                    for particle in chunk.particles.values() {
                         total_energy += particle.energy;
                     }
                     chunk.total_energy = total_energy;

@@ -3,10 +3,6 @@ use crate::bob;
 use crate::Chunk;
 use crate::euuid;
 use crate::puuid;
-use crate::Particle;
-use crate::particle::Color;
-use crate::ParticleType;
-use crate::ParticleData;
 use crate::Point;
 use std::collections::HashSet;
 use std::collections::HashMap;
@@ -52,9 +48,9 @@ pub fn get_next_gene(entity: &mut Entity, rng: &mut rand::prelude::ThreadRng) ->
     entity.next_gene_id += 1;
     return entity.dna[next_gene_id];
 }
-pub fn add_new_plant_at(mut chunk: &mut Chunk, p: Point, dna_option: Option<Vec<f64>>) {
-    add_new_plant(chunk, Some(p), dna_option);
-}
+//pub fn add_new_plant_at(chunk: &mut Chunk, p: Point, dna_option: Option<Vec<f64>>) {
+//    add_new_plant(chunk, Some(p), dna_option);
+//}
 pub fn add_new_plant(mut chunk: &mut Chunk, coord_option: Option<Point>, dna_option: Option<Vec<f64>>) {
     // Todo, replace by const
     let border = 0.0;
