@@ -21,6 +21,12 @@ const conf = {
   'urls': [
     'ws://127.0.0.1:10001',
     'ws://vworld9khrgwnf-vworld.functions.fnc.fr-par.scw.cloud',
+  ],
+  'quotes': [
+    `Welcome to VWorld`,
+    `It's not a bug, it's a maladaptation to the current universe`,
+    `One too many is too many`,
+    `Value is at the edge`,
   ]
 }
 const data = {
