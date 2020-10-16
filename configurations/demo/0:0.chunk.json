@@ -11,7 +11,7 @@
   "y": 0,
   "constants": {
     "use_distance_traveled_as_fitness_function": true,
-    "display_simulation_logs": false,
+    "display_simulation_logs": true,
     "muscles_use_output": false,
     "collision_push_rate": 0.2,
     "drag_coefficient": 10,
@@ -51,5 +51,8 @@
     "mouth_energy_eating_rate_per_second": 1,
     "enable_auto_link_6": true,
     "destroy_unstable_entities": true
+  },
+  "thread_count": {
+    "value": 4
   }
 }

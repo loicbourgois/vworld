@@ -29,6 +29,7 @@ const conf = {
     `Value is at the edge`,
   ]
 }
+let parse_chunk_json = true;
 const data = {
   socket_pairs: []
 }
@@ -92,7 +93,13 @@ const setup_socket_pair = (socket_pair) => {
       console.log('[reader] error')
   });
   socket_pair.reader.addEventListener('message', (event) => {
-    chunk = JSON.parse(event.data)
+    if (parse_chunk_json == true) {
+      chunk = JSON.parse(event.data)
+      parse_chunk_json = false
+      setTimeout(() => {
+        parse_chunk_json = true
+      }, 10)
+    }
   });
 
   socket_pair.writer.addEventListener('open', function (event) {
@@ -213,14 +220,18 @@ const render = () => {
   for (let particle_id in chunk.particles) {
     const particle = chunk.particles[particle_id]
     if (particle.type_ == "Mouth") {
-      let x = particle.x + particle.data.MouthData.direction.x * particle.diameter * 0.35;
-      let y = particle.y + particle.data.MouthData.direction.y * particle.diameter * 0.35;
-      if (Math.abs(particle.data.MouthData.direction.x) < 0.1 && Math.abs(particle.data.MouthData.direction.y)  < 0.1)
-      {
-        x = particle.x + 0.0 * particle.diameter * 0.35;
-         y = particle.y - 1.0 * particle.diameter * 0.35;
+      try {
+        let x = particle.x + particle.data.MouthData.direction.x * particle.diameter * 0.35;
+        let y = particle.y + particle.data.MouthData.direction.y * particle.diameter * 0.35;
+        if (Math.abs(particle.data.MouthData.direction.x) < 0.1 && Math.abs(particle.data.MouthData.direction.y)  < 0.1)
+        {
+          x = particle.x + 0.0 * particle.diameter * 0.35;
+           y = particle.y - 1.0 * particle.diameter * 0.35;
+        }
+        draw_mouth(canvas_1, x, y, particle.diameter, zoom, center_x, center_y)
+      } catch (error) {
+
       }
-      draw_mouth(canvas_1, x, y, particle.diameter, zoom, center_x, center_y)
     }
   }
   for (let particle_id in chunk.particles) {
@@ -234,9 +245,13 @@ const render = () => {
   for (let particle_id in chunk.particles) {
     const particle = chunk.particles[particle_id]
     if (particle.type_ == "Eye") {
-      const x = particle.x + particle.data.EyeData.direction.x * particle.diameter * 0.3;
-      const y = particle.y + particle.data.EyeData.direction.y * particle.diameter * 0.3;
-      draw_eye(canvas_1, x, y, particle.diameter, zoom, center_x, center_y)
+      try {
+        const x = particle.x + particle.data.EyeData.direction.x * particle.diameter * 0.3;
+        const y = particle.y + particle.data.EyeData.direction.y * particle.diameter * 0.3;
+        draw_eye(canvas_1, x, y, particle.diameter, zoom, center_x, center_y)
+      } catch (error) {
+
+      }
     }
   }
   for (let particle_id in chunk.particles) {

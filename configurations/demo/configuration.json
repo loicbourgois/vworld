@@ -5,9 +5,12 @@
     "x": 0,
     "y": 0
   },
+  "thread_count": {
+    "value": 4
+  },
   "constants": {
     "use_distance_traveled_as_fitness_function": true,
-    "display_simulation_logs": false,
+    "display_simulation_logs": true,
     "muscles_use_output": false,
     "collision_push_rate": 0.2,
     "drag_coefficient": 10.0,
@@ -17,7 +20,7 @@
     "delta_time": 0.01,
     "default_mass": 0.1,
     "default_diameter": 0.01,
-    "min_body_parts_count": 3,
+    "min_body_parts_count": 20,
     "max_body_parts_count": 20,
     "max_stats_count": 1000,
     "plant": {

@@ -9,6 +9,7 @@ chunk_configuration = configuration.servers[`${process.env.x},${process.env.y}`]
 chunk_configuration.x = parseInt(process.env.x)
 chunk_configuration.y = parseInt(process.env.y)
 chunk_configuration.constants = configuration.constants
+chunk_configuration.thread_count = configuration.thread_count
 chunk_configuration_str = JSON.stringify(chunk_configuration, null, 2)
 file_path = `${process.env.configuration_folder}/${process.env.x}:${process.env.y}.chunk.json`
 fs.writeFileSync(file_path, chunk_configuration_str)

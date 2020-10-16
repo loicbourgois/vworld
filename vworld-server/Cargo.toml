@@ -13,7 +13,7 @@ tungstenite = "0.11.1"
 rand = "0.7.3"
 uuid = {version = "0.8.1", features = ["v4"]}
 hashers = "1.0.1"
-#fasthash = "0.2.8"
+num_cpus = "1.13.0"
 
 [[bin]]
 name = "vworld-server"

@@ -1,0 +1,14 @@
+[package]
+name = "vworld-test"
+version = "0.0.1"
+authors = ["loicbourgois <loic@bourgois.pro>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+arrayvec = "0.5.1"
+
+[[bin]]
+name = "test"
+path = "test.rs"

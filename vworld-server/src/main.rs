@@ -1,4 +1,4 @@
-#![deny(warnings)]
+//#![deny(warnings)]
 mod point;
 mod vector;
 mod particle;
@@ -11,6 +11,12 @@ use crate::particle::add_particle;
 use crate::vector::Vector;
 use crate::point::Point;
 mod entity;
+mod chunk;
+mod compute;
+use crate::compute::ComputeInputData;
+use crate::compute::ComputeOutputData;
+use crate::chunk::Chunk;
+use crate::chunk::Stats;
 use crate::entity::Entity;
 use crate::entity::EntityType;
 use crate::entity::get_next_gene;
@@ -31,6 +37,11 @@ use rand::prelude::*;
 use ::uuid::Uuid as bob;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use crate::compute::compute;
+use num_cpus;
+use std::ptr;
+use std::sync::mpsc::{Sender, Receiver};
+use std::sync::mpsc;
 #[allow(non_camel_case_types)]
 type uuid = u128;
 #[allow(non_camel_case_types)]
@@ -40,40 +51,6 @@ type euuid = uuid;
 #[allow(non_camel_case_types)]
 type luuid = uuid;
 #[derive(Serialize, Deserialize)]
-pub struct Chunk {
-    width: f64,
-    height: f64,
-    step: u32,
-    particles: HashMap<puuid, Particle>,
-    x: u32,
-    y: u32,
-    links: HashMap<luuid, Link>,
-    constants: Constants,
-    entities: HashMap<euuid, Entity>,
-    real_time_ms: u128,
-    particles_count: u32,
-    entities_count: u32,
-    links_count: u32,
-    total_energy: f64,
-    best_dna_ever_by_age: BestDna,
-    best_dna_alive_by_age: BestDna,
-    best_dna_ever_by_distance_traveled: BestDna,
-    best_dna_alive_by_distance_traveled: BestDna,
-    stats: Vec<Stats>,
-}
-#[derive(Serialize, Deserialize)]
-pub struct Stats {
-    step: u32,
-    real_time_s: f64,
-    simulation_time_s: f64,
-    steps_per_second: f64,
-    simulation_speed: f64,
-    best_dna_ever_by_age: BestDnaStat,
-    best_dna_alive_by_age: BestDnaStat,
-    best_dna_ever_by_distance_traveled: BestDnaStat,
-    best_dna_alive_by_distance_traveled: BestDnaStat,
-}
-#[derive(Serialize, Deserialize)]
 struct ParticleConfiguration {
     x: f64,
     y: f64,
@@ -82,20 +59,22 @@ struct ParticleConfiguration {
     mass: f64
 }
 #[derive(Serialize, Deserialize)]
-struct Link {
-    puuids: [puuid; 2],
-    strengh: f64,
-    puuids_str: [String; 2],
-}
-struct Collision {
-    puuids: [puuid; 2],
-    delta_vector: Vector,
-    collision_x: f64,
+pub struct Link {
+    pub puuids: [puuid; 2],
+    pub strengh: f64,
+    pub puuids_str: [String; 2],
 }
 #[derive(Serialize, Deserialize)]
 struct EntityConfiguration {
     particles: Vec<ParticleConfiguration>,
     links: Vec<Link>
+}
+#[derive(Clone, Copy, Serialize, Deserialize)]
+pub enum ThreadCount {
+    #[allow(non_camel_case_types)]
+    auto,
+    #[allow(non_camel_case_types)]
+    value(usize)
 }
 #[derive(Serialize, Deserialize)]
 struct ChunkConfiguration {
@@ -103,17 +82,18 @@ struct ChunkConfiguration {
     y: u32,
     entities: Vec<EntityConfiguration>,
     constants: Constants,
+    thread_count: ThreadCount,
 }
 #[derive(Serialize, Deserialize)]
-struct BestDna {
-    age_in_ticks: u32,
-    dna: Vec<f64>,
-    distance_traveled: f64,
+pub struct BestDna {
+    pub age_in_ticks: u32,
+    pub dna: Vec<f64>,
+    pub distance_traveled: f64,
 }
 #[derive(Serialize, Deserialize)]
-struct BestDnaStat {
-    age_in_ticks: u32,
-    distance_traveled: f64,
+pub struct BestDnaStat {
+    pub age_in_ticks: u32,
+    pub distance_traveled: f64,
 }
 fn create_chunk_from_configuration_str(configuration_str: &str) -> Chunk {
     let configuration: ChunkConfiguration = json::from_str(&configuration_str).unwrap();
@@ -153,6 +133,13 @@ fn create_chunk_from_configuration_str(configuration_str: &str) -> Chunk {
             distance_traveled: 0.0,
         },
         stats: Vec::new(),
+        thread_count: match configuration.thread_count {
+            ThreadCount::auto => {
+                (num_cpus::get() - 2).max(1)
+            },
+            ThreadCount::value(value) => value
+        },
+        json: "".to_string(),
     };
     for _ in 0..configuration.constants.bloop.min_count {
         add_new_bloop(&mut chunk)
@@ -160,10 +147,6 @@ fn create_chunk_from_configuration_str(configuration_str: &str) -> Chunk {
     for _ in 0..configuration.constants.plant.min_count {
         add_new_plant(&mut chunk, None, None);
     }
-    /*add_new_plant(&mut chunk, Some(Point{
-        x:0.5,
-        y:0.5
-    }), None);*/
     return chunk
 }
 fn get_free_pairs(entity: &Entity) -> Vec<[puuid; 2]> {
@@ -198,10 +181,57 @@ fn main() {
     let chunk_configuration_str: String = env::var("vworld_chunk_configuration").unwrap().replace("\\\"", "\"");
     let host = format!("{}:{}", address, port);
     let server = TcpListener::bind(host.to_owned()).unwrap();
-    let chunk = Arc::new(RwLock::new(create_chunk_from_configuration_str(&chunk_configuration_str)));
+    let chunk = create_chunk_from_configuration_str(&chunk_configuration_str);
+    let thread_count = chunk.thread_count;
+    let chunk_lock = Arc::new(RwLock::new(chunk));
+    let mut worker_threads = Vec::new();
+    let mut input_channels: Vec<(Sender<ComputeInputData>, Receiver<ComputeInputData>)> = Vec::new();
+    let output_channel: (Sender<ComputeOutputData>, Receiver<ComputeOutputData>) = mpsc::channel();
+    let output_receiver = output_channel.1;
+    for i in 0..thread_count {
+        let chunk_clone = Arc::clone(&chunk_lock);
+        input_channels.push(mpsc::channel());
+        let thread_output_sender = output_channel.0.clone();
+        let thread_input_receiver = unsafe { ptr::read(&input_channels[i].1) };
+        worker_threads.push(thread::spawn(move || {
+            loop {
+                let input_data = thread_input_receiver.recv().unwrap();
+                let mut particle_updates = HashMap::new();
+                compute(&chunk_clone.read().unwrap(), &input_data.puuids, &mut particle_updates);
+                let output_data = ComputeOutputData {
+                    id: i,
+                    particle_updates: particle_updates,
+                };
+                thread_output_sender.send(output_data).unwrap();
+            }
+        }));
+    }
+
+    //
+    let chunk_json = "".to_string();
+    let chunk_json_lock = Arc::new(RwLock::new(chunk_json));
+    {
+        let chunk_lock_clone = Arc::clone(&chunk_lock);
+        let chunk_json_lock_clone = Arc::clone(&chunk_json_lock);
+        thread::spawn(move || {
+            let mut json = "".to_string();
+            loop {
+                {
+                    json = serde_json::to_string(&*chunk_lock_clone.read().unwrap()).unwrap();
+                }
+                {
+                    let mut chunk_json = chunk_json_lock_clone.write().unwrap();
+                    *chunk_json = json;
+                }
+                thread::sleep(Duration::from_millis(50));
+            }
+        });
+    }
+
+    //
     println!("starting server...");
     {
-        let chunk_clone = Arc::clone(&chunk);
+        let chunk_clone = Arc::clone(&chunk_lock);
         thread::spawn(move || {
             let mut rng = rand::thread_rng();
             let start_time = SystemTime::now();
@@ -212,10 +242,6 @@ fn main() {
                     let mut chunk = chunk_clone.write().unwrap();
                     chunk.real_time_ms = SystemTime::now().duration_since(start_time).unwrap().as_millis();
                     let delta_time = chunk.constants.delta_time;
-                    let simulation_time_s = chunk.step as f64 * chunk.constants.delta_time;
-                    let real_time_s = chunk.real_time_ms as f64 * 0.001;
-                    let simulation_speed = simulation_time_s / real_time_s;
-                    let steps_per_second = chunk.step as f64 / real_time_s;
                     // Add entities
                     let mut entities_by_type: HashMap<EntityType, i32> = HashMap::new();
                     entities_by_type.insert(EntityType::Plant, 0);
@@ -225,7 +251,6 @@ fn main() {
                             type_ => *entities_by_type.get_mut(&type_).unwrap() += 1
                         }
                     }
-
                     let a: i32 = (*entities_by_type.get(&EntityType::Plant).unwrap()) as i32;
                     let b: i32 = chunk.constants.plant.min_count as i32;
                     let plant_to_add_count: i32 = (b - a).max(0);
@@ -253,6 +278,7 @@ fn main() {
                         }
                         new_outputs_by_puuid.insert(*puuid, output);
                     }
+                    let simulation_time_s = chunk.step as f64 * chunk.constants.delta_time;
                     for (puuid, particle) in &mut chunk.particles.iter_mut() {
                         particle.output = match particle.type_ {
                             ParticleType::Heart => {
@@ -482,7 +508,6 @@ fn main() {
                     for euuid in entities_to_remove.iter() {
                         chunk.entities.remove(euuid);
                     }
-
                     // Add link forces
                     let mut forces_by_puuid: HashMap<puuid, Vector> = HashMap::new();
                     for puuid in chunk.particles.keys() {
@@ -518,122 +543,54 @@ fn main() {
                     for (puuid, force) in forces_by_puuid.iter() {
                         update_position_verlet(&mut chunk.particles.get_mut(puuid).unwrap(), &force, delta_time);
                     }
-                    // Compute collisions
-                    let mut collisions: Vec<Collision> = Vec::new();
-                    let collision_sections_count = 75;
-                    let mut divisions: Vec<Vec<Vec<puuid>>> = vec![vec![Vec::new(); collision_sections_count]; collision_sections_count];
-                    let mut divisions_by_puuid: HashMap<puuid, [usize; 2]> = HashMap::new();
-                    for (puuid, p) in chunk.particles.iter() {
-                        let x = if p.x < 0.0 {
-                            0
-                        } else if p.x >= 1.0 {
-                            collision_sections_count - 1
-                        } else {
-                            (p.x * collision_sections_count as f64).abs() as usize
-                        };
-                        let y = if p.y < 0.0 {
-                            0
-                        } else if p.y >= 1.0 {
-                            collision_sections_count - 1
-                        } else {
-                            (p.y * collision_sections_count as f64).abs() as usize
-                        };
-                        divisions[x][y].push(*puuid);
-                        divisions_by_puuid.insert(*puuid, [x, y]);
+
+                }
+                // Compute
+                let mut outputs = Vec::new();
+                {
+                    let mut chunk = chunk_clone.read().unwrap();
+                    let mut puuids_by_thread: Vec<Vec<puuid>> = Vec::new();
+                    for i in 0..thread_count {
+                        puuids_by_thread.push(Vec::new());
                     }
-                    for (puuid_1, division_coords) in divisions_by_puuid.iter() {
-                        let i = division_coords[0];
-                        let j = division_coords[1];
-                        let targets_x_start = if i == 0 { 0 } else {i-1};
-                        let targets_x_end = (i+2).min(collision_sections_count);
-                        let targets_y_start = if j == 0 { 0 } else {j-1};
-                        let targets_y_end = (j+2).min(collision_sections_count);
-                        for x in targets_x_start..targets_x_end {
-                            for y in targets_y_start..targets_y_end {
-                                let targets = &divisions[x][y];
-                                for puuid_2 in targets.iter() {
-                                    if puuid_1 < puuid_2 {
-                                        let p1 = chunk.particles.get(puuid_1).unwrap();
-                                        let p2 = chunk.particles.get(puuid_2).unwrap();
-                                        let collision = detect_collision(p1, p2);
-                                        if collision {
-                                            let distance_centers = Point::get_distance(p1.x, p1.y, p2.x, p2.y);
-                                            let radiuses = (p1.diameter * 0.5) + (p2.diameter * 0.5);
-                                            let v = Vector::new_2(p1.x, p1.y, p2.x, p2.y);
-                                            let delta = radiuses - distance_centers;
-                                            let delta_vector = v.normalized().multiplied(delta);
-                                            collisions.push(Collision{
-                                                puuids: [*puuid_1,*puuid_2],
-                                                delta_vector: delta_vector,
-                                                collision_x: delta_vector.x * chunk.constants.collision_push_rate
-                                            });
-                                        } else {
-                                            // Do nothing
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                    let mut i = 0;
+                    for puuid in chunk.particles.keys() {
+                        puuids_by_thread[i%thread_count].push(*puuid);
+                        i += 1;
                     }
-                    // Reset is_colliding_other_entity
-                    for particle in &mut chunk.particles.values_mut() {
-                        particle.is_colliding_other_entity = false;
+                    for i in 0..thread_count {
+                        input_channels[i].0.send(ComputeInputData{
+                            id: i,
+                            puuids: puuids_by_thread[i].to_vec(),
+                        }).unwrap();
                     }
+                    for _ in 0..thread_count {
+                        outputs.push(output_receiver.recv().unwrap());
+                    }
+                }
+                {
+                    let mut chunk = chunk_clone.write().unwrap();
                     // Treat collisions
-                    for collision in collisions.iter() {
-                        let p1_is_mouth: bool = {
-                            match chunk.particles.get(&collision.puuids[0]).unwrap().type_ {
-                                ParticleType::Mouth => true,
-                                _ => false
-                            }
-                        };
-                        let p2_is_mouth: bool = {
-                            match chunk.particles.get(&collision.puuids[1]).unwrap().type_ {
-                                ParticleType::Mouth => true,
-                                _ => false
-                            }
-                        };
-                        let e1_is_not_e2: bool = {
-                            chunk.particles.get(&collision.puuids[0]).unwrap().euuid != chunk.particles.get(&collision.puuids[1]).unwrap().euuid
-                        };
-                        let collision_push_rate = chunk.constants.collision_push_rate;
-                        let mouth_energy_eating_rate: f64 = chunk.constants.mouth_energy_eating_rate_per_second * chunk.constants.delta_time;
-                        let p1 = chunk.particles.get_mut(&collision.puuids[0]).unwrap();
-                        p1.x -= collision.collision_x;
-                        p1.y -= collision.delta_vector.y * collision_push_rate;
-                        p1.x_old -= collision.delta_vector.x * collision_push_rate;
-                        p1.y_old -= collision.delta_vector.y * collision_push_rate;
-                        if e1_is_not_e2 {
-                            if p1_is_mouth {
-                                p1.energy += mouth_energy_eating_rate;
-                            }
-                            if p2_is_mouth {
-                                p1.energy -= mouth_energy_eating_rate;
-                            }
-                            p1.is_colliding_other_entity = true;
-                        }
-                        let p2 = chunk.particles.get_mut(&collision.puuids[1]).unwrap();
-                        p2.x += collision.delta_vector.x * collision_push_rate;
-                        p2.y += collision.delta_vector.y * collision_push_rate;
-                        p2.x_old += collision.delta_vector.x * collision_push_rate;
-                        p2.y_old += collision.delta_vector.y * collision_push_rate;
-                        if e1_is_not_e2 {
-                            if p1_is_mouth {
-                                p2.energy -= mouth_energy_eating_rate;
-                            }
-                            if p2_is_mouth {
-                                p2.energy += mouth_energy_eating_rate;
-                            }
-                            p2.is_colliding_other_entity = true;
+                    //let mut collision_count = 0;
+                    //for output in &outputs {
+                    //    let collisions = &output.collisions;
+                    //    collision_count += collisions.len();
+
+                    //}
+                    for output in &outputs {
+                        for (puuid, particle_update) in &output.particle_updates {
+                            let p = chunk.particles.get_mut(puuid).unwrap();
+                            p.x += particle_update.x;
+                            p.y += particle_update.y;
+                            p.x_old += particle_update.x_old;
+                            p.y_old += particle_update.y_old;
+                            p.energy += particle_update.energy;
+                            p.is_colliding_other_entity = particle_update.is_colliding_other_entity || p.is_colliding_other_entity;
                         }
                     }
-                    // Treat collisions with wall
-                    // TODO: proper implementation, with config
-                    //for (puuid, particle) in chunk.particles.iter_mut() {
-                    //    if particle.y < 0.1 {
-                    //        particle.y = 0.1;
-                    //    }
-                    //}
+
+
+
                     // Update entity position
                     let mut entities_coord: HashMap<euuid, (f64, f64)> = HashMap::new();
                     for particle in chunk.particles.values() {
@@ -712,6 +669,7 @@ fn main() {
                         }
                     }
                     // Stats
+                    let real_time_s = chunk.real_time_ms as f64 * 0.001;
                     chunk.particles_count = chunk.particles.len() as u32;
                     chunk.links_count = chunk.links.len() as u32;
                     chunk.entities_count = chunk.entities.len() as u32;
@@ -720,6 +678,7 @@ fn main() {
                         total_energy += particle.energy;
                     }
                     chunk.total_energy = total_energy;
+                    let simulation_time_s = chunk.step as f64 * chunk.constants.delta_time;
                     if chunk.step % 100 == 0 {
                         let l = chunk.stats.len();
                         let mut real_time_s_delta = 0.0;
@@ -731,6 +690,7 @@ fn main() {
                             steps_delta = chunk.step - chunk.stats[l-1].step;
                         }
                         let current_steps_per_second = steps_delta as f64 / real_time_s_delta;
+                        let steps_per_second = chunk.step as f64 / real_time_s;
                         let current_simulation_speed = simulation_time_s_delta / real_time_s_delta;
                         let stats = Stats {
                             step: chunk.step,
@@ -765,7 +725,8 @@ fn main() {
                             let i = rng.gen::<f64>() * (chunk.stats.len() - 2) as f64 + 1.0;
                             chunk.stats.remove(i as usize);
                         }
-                        //if chunk.constants.display_simulation_logs {
+                        if chunk.constants.display_simulation_logs {
+                            let simulation_speed = simulation_time_s / real_time_s;
                             println!("step #{}", chunk.step);
                             println!("  average:              ");
                             println!("    steps / second:   {}", steps_per_second);
@@ -773,7 +734,7 @@ fn main() {
                             println!("  current:              ");
                             println!("    steps / second:   {}", current_steps_per_second);
                             println!("    simulation_speed: {}", current_simulation_speed);
-                            println!("  collisions:         {}", collisions.len());
+                            // println!("  collisions:         {}", collision_count);
                             println!("  entities:           {}", chunk.entities.len());
                             println!("  particles:          {}", chunk.particles.len());
                             println!("  energy:             {}", chunk.total_energy);
@@ -784,7 +745,7 @@ fn main() {
                             println!("    age:              {}", chunk.best_dna_alive_by_age.age_in_ticks);
                             println!("    distance:         {}", chunk.best_dna_alive_by_age.distance_traveled);
                             println!("  stats:              {}", chunk.stats.len());
-                        //}
+                        }
                     }
                     chunk.step += 1;
                 }
@@ -792,11 +753,13 @@ fn main() {
         });
     }
     println!("server started");
-    println!("  host:          {}", host);
-    println!("  configuration: {}", chunk_configuration_str);
+    println!("  host:           {}", host);
+    println!("  engine threads: {}", thread_count);
+    println!("  configuration:  {}", chunk_configuration_str);
     for stream in server.incoming() {
         println!("incoming");
-        let chunk_clone = Arc::clone(&chunk);
+        let chunk_clone = Arc::clone(&chunk_lock);
+        let chunk_json_clone = Arc::clone(&chunk_json_lock);
         thread::spawn (move || {
             let mut websocket = accept(stream.unwrap()).unwrap();
             loop {
@@ -806,9 +769,7 @@ fn main() {
                     if msg == tungstenite::Message::Text("Hello Server!".to_string()) {
                         loop {
                             {
-                                let chunk_value = chunk_clone.read().unwrap();
-                                let chunk_json = serde_json::to_string(&*chunk_value).unwrap();
-                                let message = tungstenite::Message::Text(format!("{}", chunk_json));
+                                let message = tungstenite::Message::Text(format!("{}", *chunk_json_clone.read().unwrap()));
                                 websocket.write_message(message).unwrap();
                             }
                             thread::sleep(Duration::from_millis(50));
@@ -839,12 +800,11 @@ fn get_link_force(p1: &Particle, p2: &Particle, length: f64, strengh: f64) -> Ve
         x1, y1,
         x2, y2
     );
-    let a;
-    if delta_length < 0.0 {
-        a = 0.000001;
+    let a = if delta_length < 0.0 {
+        0.000001
     } else {
-        a = 1.0;
-    }
+        1.0
+    };
     let force_x;
     let force_y;
     match unit_vector_option {
@@ -871,10 +831,4 @@ fn update_position_verlet(p: &mut Particle, forces: &Vector, delta_time: f64) {
     p.y = 2.0 * current_y - p.y_old + acceleration_y * delta_time * delta_time;
     p.x_old = current_x;
     p.y_old = current_y;
-}
-fn detect_collision(p1: & Particle, p2: & Particle) -> bool {
-    let distance_squared_centers = Point::get_distance_squared(p1.x, p1.y, p2.x, p2.y);
-    let radiuses = (p1.diameter * 0.5) + (p2.diameter * 0.5);
-    let radiuses_squared = radiuses * radiuses;
-    distance_squared_centers < radiuses_squared /*&& p1.id != p2.id*/
 }
