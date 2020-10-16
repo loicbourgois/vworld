@@ -33,7 +33,68 @@ pub fn compute(
     puuids: &Vec<puuid>,
     particle_updates: &mut HashMap<puuid, ParticleUpdate>
 ) {
+    // Reset particle_updates
+    reset_particle_updates(chunk, particle_updates);
+    // Compute collisions
+    let mut collisions = Vec::new();
+    compute_collisions(chunk, puuids, &mut collisions);
+
+
+
     //
+
+    for collision in collisions.iter() {
+        let p1_is_mouth: bool = {
+            match chunk.particles.get(&collision.puuids[0]).unwrap().type_ {
+                ParticleType::Mouth => true,
+                _ => false
+            }
+        };
+        let p2_is_mouth: bool = {
+            match chunk.particles.get(&collision.puuids[1]).unwrap().type_ {
+                ParticleType::Mouth => true,
+                _ => false
+            }
+        };
+        let e1_is_not_e2: bool = {
+            chunk.particles.get(&collision.puuids[0]).unwrap().euuid != chunk.particles.get(&collision.puuids[1]).unwrap().euuid
+        };
+        let collision_push_rate = chunk.constants.collision_push_rate;
+        let mouth_energy_eating_rate: f64 = chunk.constants.mouth_energy_eating_rate_per_second * chunk.constants.delta_time;
+        let p1 = particle_updates.get_mut(&collision.puuids[0]).unwrap();
+        p1.x -= collision.delta_vector.x * collision_push_rate;
+        p1.y -= collision.delta_vector.y * collision_push_rate;
+        p1.x_old -= collision.delta_vector.x * collision_push_rate;
+        p1.y_old -= collision.delta_vector.y * collision_push_rate;
+        if e1_is_not_e2 {
+            if p1_is_mouth {
+                p1.energy += mouth_energy_eating_rate;
+            }
+            if p2_is_mouth {
+                p1.energy -= mouth_energy_eating_rate;
+            }
+            p1.is_colliding_other_entity = true;
+        }
+        let p2 = particle_updates.get_mut(&collision.puuids[1]).unwrap();
+        p2.x += collision.delta_vector.x * collision_push_rate;
+        p2.y += collision.delta_vector.y * collision_push_rate;
+        p2.x_old += collision.delta_vector.x * collision_push_rate;
+        p2.y_old += collision.delta_vector.y * collision_push_rate;
+        if e1_is_not_e2 {
+            if p1_is_mouth {
+                p2.energy -= mouth_energy_eating_rate;
+            }
+            if p2_is_mouth {
+                p2.energy += mouth_energy_eating_rate;
+            }
+            p2.is_colliding_other_entity = true;
+        }
+    }
+}
+fn reset_particle_updates (
+    chunk: &Chunk,
+    particle_updates: &mut HashMap<puuid, ParticleUpdate>
+) {
     for (puuid, p) in chunk.particles.iter() {
         particle_updates.insert(*puuid, ParticleUpdate {
             x: 0.0,
@@ -44,8 +105,12 @@ pub fn compute(
             is_colliding_other_entity: false,
         });
     }
-    //
-    let mut collisions = Vec::new();
+}
+fn compute_collisions (
+    chunk: &Chunk,
+    puuids: &Vec<puuid>,
+    collisions: &mut Vec<Collision>
+) {
     let collision_sections_count = 50;
     let mut divisions: Vec<Vec<Vec<puuid>>> = vec![vec![Vec::new(); collision_sections_count]; collision_sections_count];
     let mut divisions_by_puuid: HashMap<puuid, [usize; 2]> = HashMap::new();
@@ -103,59 +168,7 @@ pub fn compute(
             }
         }
     }
-
-    //
-
-    for collision in collisions.iter() {
-        let p1_is_mouth: bool = {
-            match chunk.particles.get(&collision.puuids[0]).unwrap().type_ {
-                ParticleType::Mouth => true,
-                _ => false
-            }
-        };
-        let p2_is_mouth: bool = {
-            match chunk.particles.get(&collision.puuids[1]).unwrap().type_ {
-                ParticleType::Mouth => true,
-                _ => false
-            }
-        };
-        let e1_is_not_e2: bool = {
-            chunk.particles.get(&collision.puuids[0]).unwrap().euuid != chunk.particles.get(&collision.puuids[1]).unwrap().euuid
-        };
-        let collision_push_rate = chunk.constants.collision_push_rate;
-        let mouth_energy_eating_rate: f64 = chunk.constants.mouth_energy_eating_rate_per_second * chunk.constants.delta_time;
-        let p1 = particle_updates.get_mut(&collision.puuids[0]).unwrap();
-        p1.x -= collision.delta_vector.x * collision_push_rate;
-        p1.y -= collision.delta_vector.y * collision_push_rate;
-        p1.x_old -= collision.delta_vector.x * collision_push_rate;
-        p1.y_old -= collision.delta_vector.y * collision_push_rate;
-        if e1_is_not_e2 {
-            if p1_is_mouth {
-                p1.energy += mouth_energy_eating_rate;
-            }
-            if p2_is_mouth {
-                p1.energy -= mouth_energy_eating_rate;
-            }
-            p1.is_colliding_other_entity = true;
-        }
-        let p2 = particle_updates.get_mut(&collision.puuids[1]).unwrap();
-        p2.x += collision.delta_vector.x * collision_push_rate;
-        p2.y += collision.delta_vector.y * collision_push_rate;
-        p2.x_old += collision.delta_vector.x * collision_push_rate;
-        p2.y_old += collision.delta_vector.y * collision_push_rate;
-        if e1_is_not_e2 {
-            if p1_is_mouth {
-                p2.energy -= mouth_energy_eating_rate;
-            }
-            if p2_is_mouth {
-                p2.energy += mouth_energy_eating_rate;
-            }
-            p2.is_colliding_other_entity = true;
-        }
-    }
 }
-
-
 fn detect_collision(p1: & Particle, p2: & Particle) -> bool {
     let distance_squared_centers = Point::get_distance_squared(p1.x, p1.y, p2.x, p2.y);
     let radiuses = (p1.diameter * 0.5) + (p2.diameter * 0.5);
