@@ -53,7 +53,5 @@
     "enable_auto_link_6": true,
     "destroy_unstable_entities": true
   },
-  "thread_count": {
-    "value": 4
-  }
+  "thread_count": "auto"
 }

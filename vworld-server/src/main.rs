@@ -128,10 +128,15 @@ fn main() {
                 let json = serde_json::to_string(&*chunk_lock_clone.read().unwrap()).unwrap().to_string();
                 let msg = tungstenite::Message::Text(json);
                 let sockets: &mut Vec<tungstenite::WebSocket<_>> = &mut *sockets_lock_clone.write().unwrap();
+                let sockets_len = sockets.len();
                 for websocket in sockets {
                     websocket.write_message(msg.clone()).unwrap();
                 }
-                thread::sleep(Duration::from_millis(60));
+                if sockets_len == 0 {
+                    thread::sleep(Duration::from_millis(1000));
+                } else {
+                    thread::sleep(Duration::from_millis(60));
+                }
             }
         });
     }
