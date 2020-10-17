@@ -11,18 +11,18 @@
   "y": 0,
   "constants": {
     "use_distance_traveled_as_fitness_function": true,
-    "display_simulation_logs": false,
+    "display_simulation_logs": true,
     "muscles_use_output": false,
     "collision_push_rate": 0.2,
     "drag_coefficient": 10,
     "link_length_coefficient": 1.01,
     "link_strengh_default": 10.5,
-    "diameter_muscle_change_rate": 0.1,
+    "diameter_muscle_change_rate": 0,
     "delta_time": 0.01,
     "default_mass": 0.1,
     "default_diameter": 0.01,
-    "min_body_parts_count": 3,
-    "max_body_parts_count": 20,
+    "min_body_parts_count": 10,
+    "max_body_parts_count": 10,
     "max_stats_count": 1000,
     "plant": {
       "mutation_rate": 1,
@@ -37,9 +37,10 @@
       "gene_progressive_mutation_rate": 1,
       "gene_progressive_mutation_strength": 0.05,
       "new_dna_rate": 0.1,
-      "min_count": 50,
+      "min_count": 100,
       "energy_drop_rate_per_tick": 0.0001,
-      "starting_energy": 0.2
+      "starting_energy": 0.2,
+      "max_contraction": 0.5
     },
     "gravity": {
       "x": 0,
@@ -51,5 +52,6 @@
     "mouth_energy_eating_rate_per_second": 1,
     "enable_auto_link_6": true,
     "destroy_unstable_entities": true
-  }
+  },
+  "thread_count": "auto"
 }

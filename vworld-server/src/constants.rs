@@ -35,6 +35,7 @@ pub struct EntityConstants {
     pub min_count: u32,
     pub energy_drop_rate_per_tick: f64,
     pub starting_energy: f64,
+    pub max_contraction: f64,
 }
 #[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct PlantConstants {
