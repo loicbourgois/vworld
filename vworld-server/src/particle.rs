@@ -71,6 +71,7 @@ pub struct Particle {
     pub phase: f64,
     pub data: ParticleData,
     pub is_colliding_other_entity: bool,
+    pub max_contraction: f64,
 }
 pub fn add_first_particle(chunk: &mut Chunk, euuid: &euuid, mut rng: &mut rand::prelude::ThreadRng) -> puuid {
     let entity = chunk.entities.get_mut(euuid).unwrap();
@@ -96,6 +97,7 @@ pub fn add_first_particle(chunk: &mut Chunk, euuid: &euuid, mut rng: &mut rand::
         output: get_next_gene(entity, &mut rng),
         bias_weight: get_next_gene(entity, &mut rng),
         is_colliding_other_entity: false,
+        max_contraction: get_next_gene(entity, &mut rng) * chunk.constants.bloop.max_contraction,
     });
     entity.puuids.insert(puuid);
     return puuid;
@@ -147,6 +149,7 @@ pub fn add_second_particle(chunk: &mut Chunk, euuid: &euuid, mut rng: &mut rand:
         output: get_next_gene(entity, &mut rng),
         bias_weight: get_next_gene(entity, &mut rng),
         is_colliding_other_entity: false,
+        max_contraction: get_next_gene(entity, &mut rng) * chunk.constants.bloop.max_contraction,
     });
     entity.puuids.insert(puuid_b);
     add_link(chunk, *euuid, luuid, puuid_a, puuid_b, &mut rng);
@@ -191,6 +194,7 @@ pub fn add_particle(chunk: &mut Chunk, euuid: &euuid, puuid_pair: [puuid; 2], mu
         output: get_next_gene(chunk.entities.get_mut(euuid).unwrap(), &mut rng),
         bias_weight: get_next_gene(chunk.entities.get_mut(euuid).unwrap(), &mut rng),
         is_colliding_other_entity: false,
+        max_contraction: get_next_gene(chunk.entities.get_mut(euuid).unwrap(), &mut rng) * chunk.constants.bloop.max_contraction,
     });
     add_pair(&mut chunk.entities.get_mut(euuid).unwrap().pairs_taken, puuid_a, puuid_b);
     add_pair(&mut chunk.entities.get_mut(euuid).unwrap().pairs_taken, puuid_b, puuid_c);
@@ -312,6 +316,7 @@ pub fn add_plant_particle(chunk: &mut Chunk, euuid: &euuid, mut rng: &mut rand::
         output: 0.0,
         bias_weight: get_next_gene(entity, &mut rng),
         is_colliding_other_entity: false,
+        max_contraction: 0.0,
     });
     entity.puuids.insert(puuid);
     return puuid;

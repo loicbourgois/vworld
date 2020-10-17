@@ -12,7 +12,6 @@ use crate::add_first_particle;
 use crate::add_second_particle;
 use crate::add_particle;
 use crate::particle::add_plant_particle;
-use crate::get_free_pairs;
 #[derive(Serialize, Deserialize, Hash, Eq)]
 pub enum EntityType {
     Plant = 1,
@@ -207,4 +206,20 @@ pub fn add_new_bloop(mut chunk: &mut Chunk) {
         }
         add_particle(&mut chunk, &euuid, free_pairs[best_pair_id], &mut rng);
     }
+}
+fn get_free_pairs(entity: &Entity) -> Vec<[puuid; 2]> {
+    let mut v = Vec::new();
+    for (puuid_a, hashet) in entity.pairs.iter() {
+        for puuid_b in hashet {
+            match entity.pairs_taken.get(puuid_a) {
+                Some(hashset_taken) => {
+                    match hashset_taken.get(puuid_b) {
+                        Some(_) => (),
+                        None => v.push([*puuid_a, *puuid_b])
+                    }
+                }, None => v.push([*puuid_a, *puuid_b])
+            }
+        }
+    }
+    return v;
 }
