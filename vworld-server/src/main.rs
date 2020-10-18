@@ -219,15 +219,14 @@ fn main() {
 
 
                     for i in 0..len {
-
-                        let msg_cloe = msg.clone();
+                        let msg_clone = msg.clone();
 
                         let sockets_lock_clone_2 = Arc::clone(&sockets_lock_clone);
                         thread::spawn(move || {
 
                             let websocket = &mut sockets_lock_clone_2.write().unwrap()[i];
 
-                            match websocket.write_message(msg_cloe) {
+                            match websocket.write_message(msg_clone) {
                                 Ok(_) => {
                                     // Do nothing
                                 },
