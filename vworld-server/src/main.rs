@@ -586,8 +586,9 @@ fn main() {
                                 }
                             }
                         },
-                        Err(_error) => {
-                            //println!("error: {}", error)
+                        Err(error) => {
+                            println!("error: {}", error);
+                            break;
                         }
                     }
                 }
