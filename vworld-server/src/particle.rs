@@ -11,7 +11,7 @@ use crate::get_next_gene;
 use std::collections::HashSet;
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
-#[derive(Serialize, Deserialize)]
+#[derive(Copy, Clone, Serialize, Deserialize)]
 pub struct Color {
     pub r: f64,
     pub g: f64,
@@ -30,7 +30,7 @@ pub enum ParticleData {
         color: Color,
     }
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Copy, Clone, Serialize, Deserialize)]
 pub enum ParticleType {
     Sun,
     Energy,

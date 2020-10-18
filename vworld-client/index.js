@@ -3,6 +3,7 @@ const conf = {
   'colors': {
     'health': '#8fa',
     'body':   '#8cf',
+    'body_up':'#8cf',
     'travel': '#a88',
     'link':   '#eee',
     'best_dna_ever_by_distance_traveled': '#faa',
@@ -60,9 +61,13 @@ const connect = () => {
       data.socket_pairs[0].writer.close()
       data.socket_pairs.shift()
     }
+    let reader = new WebSocket(url);
+    //reader.binaryType = "arraybuffer";
+    let writer = new WebSocket(url);
+    //reader.binaryType = "arraybuffer";
     data.socket_pairs.push({
-      'reader': new WebSocket(url),
-      'writer': new WebSocket(url)
+      'reader': reader,
+      'writer': writer
     })
     setup_socket_pair(data.socket_pairs[data.socket_pairs.length - 1])
   } catch(error) {
@@ -104,6 +109,9 @@ const setup_socket_pair = (socket_pair) => {
   socket_pair.reader.addEventListener('message', (event) => {
     if (parse_chunk_json == true) {
       chunk = JSON.parse(event.data)
+      //chunk = parse_chunk_data(event.data)
+      //console.log('event', event)
+      //chunk.step =
       parse_chunk_json = false
       setTimeout(() => {
         parse_chunk_json = true
@@ -163,7 +171,8 @@ let last_render_time_ms = Date.now();
 let now_ms = Date.now();
 let fps_list = []
 const render = () => {
-  if (!chunk.constants) {
+  const zoom = parseFloat(document.querySelector("#slider_1").value) / 1000.0 * 9.0 + 1.0
+  if (!chunk.step) {
     return
   }
   // fps
@@ -179,22 +188,68 @@ const render = () => {
     fps_sum += fps_list[i]
   }
   const fps = fps_sum / fps_list.length;
-  document.getElementById('fps').innerHTML = fps.toFixed(2);
-  //
-  const zoom = parseFloat(document.querySelector("#slider_1").value) / 1000.0 * 9.0 + 1.0
   const simulation_time_s = (chunk.step * chunk.constants.delta_time)
   const real_time_s = (chunk.real_time_ms / 1000)
   const simulation_speed = simulation_time_s / real_time_s
+  context_1.clearRect(0, 0, canvas_1.width, canvas_1.height)
+  context_2.clearRect(0, 0, canvas_2.width, canvas_2.height)
+  for (let particle_id in chunk.particles) {
+    const particle = chunk.particles[particle_id]
+    if (particle.type_ == "Plant") {
+      draw_plant(canvas_1, particle.x, particle.y, particle.diameter, zoom, center_x, center_y, particle.color)
+      draw_plant(canvas_2, particle.x, particle.y, particle.diameter, 1.0, 0.5, 0.5, particle.color)
+    } else if (particle.type_ == "Eye") {
+      draw_body(canvas_1, particle.x, particle.y, particle.diameter, zoom, center_x, center_y)
+      draw_body(canvas_2, particle.x, particle.y, particle.diameter, 1.0, 0.5, 0.5)
+      const x = particle.x + particle.direction.x * particle.diameter * 0.3;
+      const y = particle.y + particle.direction.y * particle.diameter * 0.3;
+      draw_eye(canvas_1, x, y, particle.diameter, zoom, center_x, center_y)
+      draw_body_up(canvas_1, particle.x, particle.y, particle.diameter*0.65, zoom, center_x, center_y)
+    } else if (particle.type_ == "Mouth") {
+      draw_body(canvas_1, particle.x, particle.y, particle.diameter, zoom, center_x, center_y)
+      draw_body(canvas_2, particle.x, particle.y, particle.diameter, 1.0, 0.5, 0.5)
+      let x = particle.x + particle.direction.x * particle.diameter * 0.35;
+      let y = particle.y + particle.direction.y * particle.diameter * 0.35;
+      if (Math.abs(particle.direction.x) < 0.1 && Math.abs(particle.direction.y)  < 0.1) {
+        x = particle.x + 0.0 * particle.diameter * 0.35;
+        y = particle.y - 1.0 * particle.diameter * 0.35;
+      }
+      draw_mouth(canvas_1, x, y, particle.diameter, zoom, center_x, center_y)
+      draw_body_up(canvas_1, particle.x, particle.y, particle.diameter*0.65, zoom, center_x, center_y)
+    } else {
+      draw_body(canvas_1, particle.x, particle.y, particle.diameter, zoom, center_x, center_y)
+      draw_body(canvas_2, particle.x, particle.y, particle.diameter, 1.0, 0.5, 0.5)
+    }
+  }
+  document.getElementById('fps').innerHTML = fps.toFixed(2);
   document.getElementById('step').innerHTML = chunk.step;
   document.getElementById('simulation_time').innerHTML = tohhmmss(simulation_time_s);
   document.getElementById('real_time').innerHTML = tohhmmss(real_time_s);
-  document.getElementById('simulation_speed').innerHTML = simulation_speed;
+  document.getElementById('simulation_speed').innerHTML = simulation_speed.toFixed(5);
+  document.getElementById('simulation_current_speed').innerHTML = chunk.stats[chunk.stats.length-1].simulation_speed.toFixed(5);
+  document.getElementById('distance_traveled_as_fitness_function').checked = chunk.constants.use_distance_traveled_as_fitness_function
+  const left = canvas_2.width * (center_x  - 0.5 / zoom)
+  const top = canvas_2.height * (center_y - 0.5  / zoom)
+  const width = canvas_2.width / zoom
+  const height = canvas_2.height / zoom
+  context_2.strokeStyle = '#fff'
+  context_2.beginPath();
+  context_2.rect(left, top, width, height);
+  context_2.stroke();
+  context_3.clearRect(0, 0, canvas_3.width, canvas_3.height)
+  context_4.clearRect(0, 0, canvas_4.width, canvas_4.height)
+  render_stats_age();
+  render_stats_distance();
+  return;
+
+  //
+
+
   document.getElementById('particles_count').innerHTML = chunk.particles_count;
   document.getElementById('entities_count').innerHTML = chunk.entities_count;
   document.getElementById('links_count').innerHTML = chunk.links_count;
   document.getElementById('total_energy').innerHTML = chunk.total_energy;
-  document.getElementById('simulation_current_speed').innerHTML = chunk.stats[chunk.stats.length-1].simulation_speed;
-  document.getElementById('distance_traveled_as_fitness_function').checked = chunk.constants.use_distance_traveled_as_fitness_function
+
   context_1.clearRect(0, 0, canvas_1.width, canvas_1.height)
   context_2.clearRect(0, 0, canvas_2.width, canvas_2.height)
   context_3.clearRect(0, 0, canvas_3.width, canvas_3.height)
@@ -310,16 +365,6 @@ const render = () => {
       draw_link(p1.x, p1.y, p2.x, p2.y, zoom)
     }
   }
-  const left = canvas_2.width * (center_x  - 0.5 / zoom)
-  const top = canvas_2.height * (center_y - 0.5  / zoom)
-  const width = canvas_2.width / zoom
-  const height = canvas_2.height / zoom
-  context_2.strokeStyle = '#fff'
-  context_2.beginPath();
-  context_2.rect(left, top, width, height);
-  context_2.stroke();
-  render_stats_age();
-  render_stats_distance();
 }
 const render_stats_distance = () => {
   let l = chunk.stats.length;
@@ -428,6 +473,9 @@ const draw_mouth = (canvas, x, y, diameter, zoom, center_x, center_y) => {
 const draw_body = (canvas, x, y, diameter, zoom, center_x, center_y) => {
   draw_disk(canvas, x, y, diameter, zoom, center_x, center_y, conf.colors.body)
 }
+const draw_body_up = (canvas, x, y, diameter, zoom, center_x, center_y) => {
+  draw_disk(canvas, x, y, diameter, zoom, center_x, center_y, conf.colors.body_up)
+}
 const draw_plant = (canvas, x, y, diameter, zoom, center_x, center_y, color_rgb) => {
   draw_disk(canvas, x, y, diameter, zoom, center_x, center_y,
     `rgb(${Math.trunc(color_rgb.r*255.0)}, ${Math.trunc(color_rgb.g*255.0)}, ${Math.trunc(color_rgb.b*255.0)})`
@@ -482,7 +530,6 @@ canvas_2.onmousemove = function(e){
     center_x = p.x / canvas_2.width
     center_y = p.y / canvas_2.height
   }
-  console.log(center_x, center_y)
 }
 document.body.onmouseup = function(e){
   mousedown = false
