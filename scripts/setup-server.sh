@@ -5,7 +5,7 @@ ansible-playbook \
   --inventory $vworld_root_folder/ansible/inventory.yml \
   --extra-vars "ansible_user=root" \
   --extra-vars "git_branch=$git_branch" \
-  --extra-vars "configuration_name=$configuration_name" \
+  --extra-vars "vworld_config=$vworld_config" \
   $vworld_root_folder/ansible/setup.yml
 mv $vworld_root_folder/ansible/inventory.yml.save $vworld_root_folder/ansible/inventory.yml
 echo "Run vworld through docker"

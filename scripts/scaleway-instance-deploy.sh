@@ -3,13 +3,14 @@ region="fr-par"
 zone="fr-par-1"
 image_uuid="77882134-b04d-456a-a891-be2995aae7d8"
 server_type="START1-L"
+server_type="X64-60GB"
+server_type="GP1-M"
 log_action () {
   message=$1
   blue='\033[1;34m'
   no_color='\033[0m'
   echo "$blue$message$no_color"
 }
-# log_action "Creating project $project_name"
 
 
 log_action "Listing Scaleway instances images"

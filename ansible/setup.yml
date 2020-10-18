@@ -38,7 +38,8 @@
       name: docker-compose
       state: present
       update_cache: yes
-  - command: dpkg --remove --force-depends golang-docker-credential-helpers
+  - name: Remove golang-docker-credential-helpers
+    command: dpkg --remove --force-depends golang-docker-credential-helpers
   - name: Download rust installer
     register: rust_output
     get_url:
@@ -46,14 +47,21 @@
       dest: /root/install-rust.sh
   - name: Install rust
     command: sh /root/install-rust.sh -y
-  - command: rm -rf vworld
-  - command: git clone https://github.com/loicbourgois/vworld.git
-  - command: git fetch --all
+  - name: Remove vworld folder
+    command: rm -rf vworld
+  - name: Git clone
+    command: git clone https://github.com/loicbourgois/vworld.git
+  - name: Git fetch
+    command: git fetch --all
     args:
       chdir: /root/vworld
-  - command: git checkout {{ git_branch }}
+  - name: Git checkout
+    command: git checkout {{ git_branch }}
     args:
       chdir: /root/vworld
-  - command: configuration_name="{{ vworld_config }}" /root/vworld/scripts/vworld-server-start.sh
-  # - command: export vworld_root_folder=$(pwd)
-  # - command: $vworld_root_folder/scripts/demo.sh
+  - name: Starting VWorld
+    command: "vworld_root_folder='/root/vworld' configuration_name='{{ vworld_config }}' /root/vworld/scripts/vworld-server-start.sh"
+    register: starting_world
+  - debug:
+      var: starting_world
+      verbosity: 2
