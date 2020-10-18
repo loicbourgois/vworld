@@ -227,6 +227,7 @@ fn main() {
                         }
                     }
                     let duration_c = SystemTime::now().duration_since(start_time).unwrap().as_millis();
+                    println!("sockets: {}", sockets.len());
                     println!("duration_a: {}", duration_a);
                     println!("duration_b: {}", duration_b);
                     println!("duration_c: {}", duration_c);

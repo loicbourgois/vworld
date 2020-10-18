@@ -54,8 +54,7 @@ const connect = () => {
   try {
     const chunk_select = document.getElementById("chunk_select");
     const url = chunk_select.options[chunk_select.selectedIndex].value;
-    log(`Connecting to`)
-    log(`  ${url}`)
+    log(`Connecting to ${url}`)
     while (data.socket_pairs.length >= 1) {
       data.socket_pairs[0].reader.close()
       data.socket_pairs[0].writer.close()
@@ -128,8 +127,7 @@ const setup_socket_pair = (socket_pair) => {
       };
   });
   socket_pair.writer.addEventListener('close', function (event) {
-      log(`[writer] connection closed for`)
-      log(`  ${socket_pair.reader.url}`)
+      log(`[writer] connection closed: ${socket_pair.reader.url}`)
   });
   socket_pair.writer.addEventListener('error', function (event) {
       console.log('[writer] error')
