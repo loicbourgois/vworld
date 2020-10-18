@@ -1,4 +1,4 @@
-#![deny(warnings)]
+//#![deny(warnings)]
 mod point;
 mod vector;
 mod particle;
@@ -128,7 +128,7 @@ fn main() {
             loop {
                 let start_time = SystemTime::now();
                 let sockets_len = {
-                    let mut errored_socket_ids = Vec::new();
+                    let mut errored_socket_ids: Vec<usize> = Vec::new();
                     let duration_a = SystemTime::now().duration_since(start_time).unwrap().as_millis();
                     let data = {
                         #[derive(Serialize, Deserialize)]
@@ -215,16 +215,30 @@ fn main() {
                     };
                     let duration_b = SystemTime::now().duration_since(start_time).unwrap().as_millis();
                     let msg = tungstenite::Message::Text(data);
-                    let sockets = &mut *sockets_lock_clone.write().unwrap();
-                    for i in 0..sockets.len() {
+                    let len = sockets_lock_clone.read().unwrap().len();
 
-                        /*let msg_cloe = msg.clone();
-                        let websocket_b = &mut sockets[i];
+
+                    for i in 0..len {
+
+                        let msg_cloe = msg.clone();
+
+                        let sockets_lock_clone_2 = Arc::clone(&sockets_lock_clone);
                         thread::spawn(move || {
-                            websocket_b.write_message(msg_cloe).unwrap();
-                        });*/
 
-                        let websocket = &mut sockets[i];
+                            let websocket = &mut sockets_lock_clone_2.write().unwrap()[i];
+
+                            match websocket.write_message(msg_cloe) {
+                                Ok(_) => {
+                                    // Do nothing
+                                },
+                                Err(error) => {
+                                    //errored_socket_ids.push(i);
+                                    println!("error socket #{}: {}", i, error)
+                                }
+                            }
+                        });
+
+                        /*let websocket = &mut sockets[i];
                         match websocket.write_message(msg.clone()) {
                             Ok(_) => {
                                 // Do nothing
@@ -233,17 +247,18 @@ fn main() {
                                 errored_socket_ids.push(i);
                                 println!("error socket #{}: {}", i, error)
                             }
-                        }
+                        }*/
                     }
                     let duration_c = SystemTime::now().duration_since(start_time).unwrap().as_millis();
                     println!("duration_a: {}", duration_a);
                     println!("duration_b: {}", duration_b);
                     println!("duration_c: {}", duration_c);
-                    errored_socket_ids.reverse();
+                    /*errored_socket_ids.reverse();
                     for errored_socket_id in errored_socket_ids {
                         sockets.remove(errored_socket_id);
                     }
-                    sockets.len()
+                    sockets.len()*/
+                    len
                 };
                 if sockets_len == 0 {
                     thread::sleep(Duration::from_millis(1000));
