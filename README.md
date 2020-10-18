@@ -18,12 +18,6 @@ export scaleway_organization_id=$(cat $HOME/.scaleway-vworld-organization-id)
 $vworld_root_folder/scripts/scaleway-instance-deploy.sh
 ```
 
-To terminate the simulation and free up all resources:
-```bash
-$vworld_root_folder/scripts/scaleway-instance-cleanup.sh
-```
-
-
 ## Deploy on [Scaleway Serverless](https://www.scaleway.com/en/elements/)
 
 ```bash

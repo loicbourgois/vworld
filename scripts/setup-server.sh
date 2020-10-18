@@ -8,7 +8,3 @@ ansible-playbook \
   --extra-vars "vworld_config=$vworld_config" \
   $vworld_root_folder/ansible/setup.yml
 mv $vworld_root_folder/ansible/inventory.yml.save $vworld_root_folder/ansible/inventory.yml
-echo "Run vworld through docker"
-echo "  ssh root@$vworld_host"
-echo "  export vworld_root_folder='/root/vworld'"
-echo "  configuration_name='demo' \$vworld_root_folder/scripts/vworld-server-start.sh"
