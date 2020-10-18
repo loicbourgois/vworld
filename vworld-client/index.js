@@ -102,7 +102,6 @@ const setup_socket_pair = (socket_pair) => {
       console.log('[reader] error')
   });
   socket_pair.reader.addEventListener('message', (event) => {
-    console.log('plop')
     if (parse_chunk_json == true) {
       chunk = JSON.parse(event.data)
       parse_chunk_json = false

@@ -1,4 +1,3 @@
-#project_name="vworld"
 region="fr-par"
 zone="fr-par-1"
 image_uuid="77882134-b04d-456a-a891-be2995aae7d8"
@@ -30,7 +29,6 @@ response=$(curl https://api.scaleway.com/instance/v1/zones/${zone}/products/serv
   --silent \
   --request GET \
   --header "x-auth-token: $scaleway_secret_key")
-# echo $response | jq --raw-output '.servers[]  '
 echo $response | jq --raw-output '.servers | keys[] as $k |   "\($k), \(.[$k] | (.ncpus|tostring) + " " +   (.monthly_price|tostring))" '
 
 
@@ -100,5 +98,5 @@ echo ""
 log_action "Server ready!"
 echo "ssh to your instance"
 echo "  ssh root@$public_ip"
-echo "connect a client to your instance"
+echo "connect a client to your instance (macOS)"
 echo "  osascript -e 'tell application \"Firefox\" to open location \"file://'\$vworld_root_folder'/vworld-client/index.html?urls=ws://$public_ip:10001\"'"
