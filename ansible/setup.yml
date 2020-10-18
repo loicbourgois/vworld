@@ -60,7 +60,10 @@
     args:
       chdir: /root/vworld
   - name: Starting VWorld
-    command: "vworld_root_folder='/root/vworld' configuration_name='{{ vworld_config }}' /root/vworld/scripts/vworld-server-start.sh"
+    command: sh /root/vworld/scripts/vworld-server-start.sh
+    environment:
+        vworld_root_folder: /root/vworld
+        configuration_name: "{{ vworld_config }}"
     register: starting_world
   - debug:
       var: starting_world
