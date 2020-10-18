@@ -125,15 +125,29 @@ fn main() {
         let sockets_lock_clone = Arc::clone(&sockets_lock);
         thread::spawn(move || {
             loop {
-                let json = serde_json::to_string(&*chunk_lock_clone.read().unwrap()).unwrap().to_string();
-                let msg = tungstenite::Message::Text(json);
-                let sockets: &mut Vec<tungstenite::WebSocket<_>> = &mut *sockets_lock_clone.write().unwrap();
-                let sockets_len = sockets.len();
-                for websocket in sockets {
-                    match websocket.write_message(msg.clone()) {
-                        _ => {}
+                let sockets_len = {
+                    let mut errored_socket_ids = Vec::new();
+                    let json = serde_json::to_string(&*chunk_lock_clone.read().unwrap()).unwrap().to_string();
+                    let msg = tungstenite::Message::Text(json);
+                    let sockets = &mut *sockets_lock_clone.write().unwrap();
+                    for i in 0..sockets.len() {
+                        let websocket = &mut sockets[i];
+                        match websocket.write_message(msg.clone()) {
+                            Ok(_) => {
+                                // Do nothing
+                            },
+                            Err(error) => {
+                                errored_socket_ids.push(i);
+                                println!("error socket #{}: {}", i, error)
+                            }
+                        }
                     }
-                }
+                    errored_socket_ids.reverse();
+                    for errored_socket_id in errored_socket_ids {
+                        sockets.remove(errored_socket_id);
+                    }
+                    sockets.len()
+                };
                 if sockets_len == 0 {
                     thread::sleep(Duration::from_millis(1000));
                 } else {
@@ -556,18 +570,24 @@ fn main() {
                 (*sockets).push(websocket);
             } else {
                 loop {
-                    let msg = websocket.read_message().unwrap();
-                    if msg.is_binary() || msg.is_text() {
-                        if msg == tungstenite::Message::Text("use_distance_traveled_as_fitness_function".to_string()) {
-                            {
-                                let mut chunk = chunk_lock_clone.write().unwrap();
-                                chunk.constants.use_distance_traveled_as_fitness_function = true;
+                    match websocket.read_message() {
+                        Ok(message) => {
+                            if message.is_binary() || message.is_text() {
+                                if message == tungstenite::Message::Text("use_distance_traveled_as_fitness_function".to_string()) {
+                                    {
+                                        let mut chunk = chunk_lock_clone.write().unwrap();
+                                        chunk.constants.use_distance_traveled_as_fitness_function = true;
+                                    }
+                                } else if msg == tungstenite::Message::Text("use_distance_traveled_as_fitness_function_false".to_string()) {
+                                    {
+                                        let mut chunk = chunk_lock_clone.write().unwrap();
+                                        chunk.constants.use_distance_traveled_as_fitness_function = false;
+                                    }
+                                }
                             }
-                        } else if msg == tungstenite::Message::Text("use_distance_traveled_as_fitness_function_false".to_string()) {
-                            {
-                                let mut chunk = chunk_lock_clone.write().unwrap();
-                                chunk.constants.use_distance_traveled_as_fitness_function = false;
-                            }
+                        },
+                        Err(_error) => {
+                            //println!("error: {}", error)
                         }
                     }
                 }

@@ -51,7 +51,7 @@ echo $response | jq
 server_id=$(echo $response | jq --raw-output '.server.id')
 
 
-log_action "Starting server"
+log_action "Starting instance"
 data='{
   "action": "poweron"
 }'
@@ -64,7 +64,7 @@ response=$(curl https://api.scaleway.com/instance/v1/zones/${zone}/servers/${ser
 echo $response | jq
 
 
-log_action "Waiting for server to be on"
+log_action "Waiting for instance to be on"
 state="none"
 while [ "$state" != "running" ]
 do

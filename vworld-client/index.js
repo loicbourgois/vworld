@@ -32,9 +32,11 @@ const conf = {
   const queryString = window.location.search;
   const urlParams = new URLSearchParams(queryString);
   const vworld_urls = urlParams.get('urls')
-  vworld_urls.split(";").forEach((vworld_server_url) => {
-    conf.urls.unshift(vworld_server_url)
-  })
+  if (vworld_urls) {
+    vworld_urls.split(";").forEach((vworld_server_url) => {
+      conf.urls.unshift(vworld_server_url)
+    })
+  }
 }
 let parse_chunk_json = true;
 const data = {

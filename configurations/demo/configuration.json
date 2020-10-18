@@ -7,7 +7,9 @@
     "x": 0,
     "y": 0
   },
-  "thread_count": "auto",
+  "thread_count": {
+    "value": 2
+  },
   "constants": {
     "use_distance_traveled_as_fitness_function": true,
     "display_simulation_logs": false,
