@@ -563,27 +563,28 @@ fn main() {
         let sockets_lock_clone = Arc::clone(&sockets_lock);
         thread::spawn (move || {
             let mut websocket = accept(stream.unwrap()).unwrap();
-            let msg = websocket.read_message().unwrap();
-            println!("message: {}", msg);
-            if msg == tungstenite::Message::Text("Hello Server!".to_string()) {
+            let message = websocket.read_message().unwrap();
+            println!("message: {}", message);
+            if message == tungstenite::Message::Text("Hello Server!".to_string()) {
                 let mut sockets = sockets_lock_clone.write().unwrap();
                 (*sockets).push(websocket);
             } else {
                 loop {
                     match websocket.read_message() {
                         Ok(message) => {
-                            if message.is_binary() || message.is_text() {
-                                if message == tungstenite::Message::Text("use_distance_traveled_as_fitness_function".to_string()) {
-                                    {
-                                        let mut chunk = chunk_lock_clone.write().unwrap();
-                                        chunk.constants.use_distance_traveled_as_fitness_function = true;
-                                    }
-                                } else if msg == tungstenite::Message::Text("use_distance_traveled_as_fitness_function_false".to_string()) {
-                                    {
-                                        let mut chunk = chunk_lock_clone.write().unwrap();
-                                        chunk.constants.use_distance_traveled_as_fitness_function = false;
-                                    }
+                            println!("message: {}", message);
+                            if message == tungstenite::Message::Text("use_distance_traveled_as_fitness_function".to_string()) {
+                                {
+                                    let mut chunk = chunk_lock_clone.write().unwrap();
+                                    chunk.constants.use_distance_traveled_as_fitness_function = true;
                                 }
+                            } else if message == tungstenite::Message::Text("use_distance_traveled_as_fitness_function_false".to_string()) {
+                                {
+                                    let mut chunk = chunk_lock_clone.write().unwrap();
+                                    chunk.constants.use_distance_traveled_as_fitness_function = false;
+                                }
+                            } else {
+                                println!("message not handled: {}", message);
                             }
                         },
                         Err(error) => {
