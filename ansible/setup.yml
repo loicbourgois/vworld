@@ -67,4 +67,3 @@
     register: starting_world
   - debug:
       var: starting_world
-      verbosity: 2

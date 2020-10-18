@@ -93,7 +93,7 @@ nc -zw100 $public_ip 22
 
 log_action "Starting vworld"
 git_current_branch=$(git rev-parse --abbrev-ref HEAD)
-git_branch="$git_current_branch" vworld_host="$public_ip" vworld_config="demo" $vworld_root_folder/scripts/setup-server.sh
+git_branch="$git_current_branch" vworld_host="$public_ip" vworld_config="demo" $vworld_root_folder/scripts/setup-server.sh || { exit 1; }
 
 
 echo ""
