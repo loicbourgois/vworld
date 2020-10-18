@@ -130,7 +130,9 @@ fn main() {
                 let sockets: &mut Vec<tungstenite::WebSocket<_>> = &mut *sockets_lock_clone.write().unwrap();
                 let sockets_len = sockets.len();
                 for websocket in sockets {
-                    websocket.write_message(msg.clone()).unwrap();
+                    match websocket.write_message(msg.clone()) {
+                        _ => {}
+                    }
                 }
                 if sockets_len == 0 {
                     thread::sleep(Duration::from_millis(1000));

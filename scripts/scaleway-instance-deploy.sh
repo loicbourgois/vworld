@@ -84,8 +84,20 @@ do
 done
 public_ip=$(echo $response | jq -r .server.public_ip.address)
 echo "public_ip: $public_ip"
-echo "ssh"
+
+
+log_action "Waiting for port 22"
+nc -zw100 $public_ip 22
+
+
+log_action "Starting vworld"
+git_current_branch=$(git rev-parse --abbrev-ref HEAD)
+git_branch="$git_current_branch" vworld_host="$public_ip" vworld_config="demo" $vworld_root_folder/scripts/setup-server.sh
+
+
+echo ""
+log_action "Server ready!"
+echo "ssh to your instance"
 echo "  ssh root@$public_ip"
-echo "setup server using"
-git_current_branch=$pwd(git rev-parse --abbrev-ref HEAD)
-echo "  git_branch=$git_current_branch vworld_host=$public_ip $vworld_root_folder/scripts/setup-server.sh"
+echo "connect a client to your instance"
+echo "  osascript -e 'tell application \"Firefox\" to open location \"file://'\$vworld_root_folder'/vworld-client/index.html?urls=ws://$public_ip:10001\"'"

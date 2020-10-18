@@ -43,13 +43,17 @@
     register: rust_output
     get_url:
       url: https://sh.rustup.rs
-      dest: install-rust.sh
+      dest: /root/install-rust.sh
   - name: Install rust
-    command: sh install-rust.sh -y
+    command: sh /root/install-rust.sh -y
   - command: rm -rf vworld
   - command: git clone https://github.com/loicbourgois/vworld.git
-  - command: cd vworld
   - command: git fetch --all
+    args:
+      chdir: /root/vworld
   - command: git checkout {{ git_branch }}
-  - command: export vworld_root_folder=$(pwd)
-  - command: $vworld_root_folder/scripts/demo.sh
+    args:
+      chdir: /root/vworld
+  - command: configuration_name="{{ vworld_config }}" /root/vworld/scripts/vworld-server-start.sh
+  # - command: export vworld_root_folder=$(pwd)
+  # - command: $vworld_root_folder/scripts/demo.sh

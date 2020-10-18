@@ -20,7 +20,6 @@ const conf = {
   },
   'urls': [
     'ws://127.0.0.1:10001',
-    'ws://vworld9khrgwnf-vworld.functions.fnc.fr-par.scw.cloud',
   ],
   'quotes': [
     `Welcome to VWorld`,
@@ -28,6 +27,14 @@ const conf = {
     `One too many is too many`,
     `Value is at the edge`,
   ]
+}
+{
+  const queryString = window.location.search;
+  const urlParams = new URLSearchParams(queryString);
+  const vworld_urls = urlParams.get('urls')
+  vworld_urls.split(";").forEach((vworld_server_url) => {
+    conf.urls.unshift(vworld_server_url)
+  })
 }
 let parse_chunk_json = true;
 const data = {
@@ -93,6 +100,7 @@ const setup_socket_pair = (socket_pair) => {
       console.log('[reader] error')
   });
   socket_pair.reader.addEventListener('message', (event) => {
+    console.log('plop')
     if (parse_chunk_json == true) {
       chunk = JSON.parse(event.data)
       parse_chunk_json = false

@@ -16,17 +16,13 @@ for (let i = configuration.start.x ; i < configuration.start.x + configuration.c
     server_configuration.constants = configuration.constants
     server_configuration.thread_count = configuration.thread_count
     server_configuration_str = JSON.stringify(server_configuration)
-    detach = ''
-    if (configuration.width * configuration.height > 1) {
-      detach = '--detach'
-    }
     k += 1
     const name = `vworld-server-${k}`
     port += 1
     docker_run_string += `# ${name}
       docker rm -f ${name};
       docker run \\
-        ${detach} \\
+        --detach \\
         --tty \\
         --env vworld_address=0.0.0.0 \\
         --env vworld_port=${port} \\
