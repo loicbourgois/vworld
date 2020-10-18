@@ -1,0 +1,69 @@
+- name: Setup
+  hosts: all
+  become: yes
+  gather_facts: true
+  tasks:
+  - name: Install git
+    apt:
+      name: git
+      state: present
+      update_cache: yes
+  - name: Install gcc
+    apt:
+      name: gcc
+      state: present
+      update_cache: yes
+  - name: Install pkg-config
+    apt:
+      name: pkg-config
+      state: present
+      update_cache: yes
+  - name: Install libssl-dev
+    apt:
+      name: libssl-dev
+      state: present
+      update_cache: yes
+  - name: Install nodejs
+    apt:
+      name: nodejs
+      state: present
+      update_cache: yes
+  - name: Install docker
+    apt:
+      name: docker
+      state: present
+      update_cache: yes
+  - name: Install docker-compose
+    apt:
+      name: docker-compose
+      state: present
+      update_cache: yes
+  - name: Remove golang-docker-credential-helpers
+    command: dpkg --remove --force-depends golang-docker-credential-helpers
+  - name: Download rust installer
+    register: rust_output
+    get_url:
+      url: https://sh.rustup.rs
+      dest: /root/install-rust.sh
+  - name: Install rust
+    command: sh /root/install-rust.sh -y
+  - name: Remove vworld folder
+    command: rm -rf vworld
+  - name: Git clone
+    command: git clone https://github.com/loicbourgois/vworld.git
+  - name: Git fetch
+    command: git fetch --all
+    args:
+      chdir: /root/vworld
+  - name: Git checkout
+    command: git checkout {{ git_branch }}
+    args:
+      chdir: /root/vworld
+  - name: Starting VWorld
+    command: sh /root/vworld/scripts/vworld-server-start.sh
+    environment:
+        vworld_root_folder: /root/vworld
+        configuration_name: "{{ vworld_config }}"
+    register: starting_world
+  - debug:
+      var: starting_world

@@ -1,3 +1,4 @@
+#!/bin/sh
 pwd_=$(pwd)
 if [ "$mode" == "release" ]; then
     release="--release"
