@@ -86,6 +86,7 @@ echo "public_ip: $public_ip"
 
 
 log_action "Waiting for port 22"
+nc -zw1000 $public_ip 22
 nc -zw100 $public_ip 22
 
 
@@ -96,6 +97,8 @@ git_branch="$git_current_branch" vworld_host="$public_ip" vworld_config="demo" $
 
 echo ""
 log_action "Server ready!"
+echo "restart vworld server with ansible"
+echo "  git_branch='$git_current_branch' vworld_host='$public_ip' vworld_config='demo' \$vworld_root_folder/scripts/setup-server.sh"
 echo "ssh to your instance"
 echo "  ssh root@$public_ip"
 echo "connect a client to your instance (macOS)"
