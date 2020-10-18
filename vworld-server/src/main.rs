@@ -139,6 +139,7 @@ fn main() {
                             color: Color,
                             type_: ParticleType,
                             direction: Vector,
+                            energy: f64,
                         }
                         #[derive(Serialize, Deserialize)]
                         struct Data {
@@ -207,6 +208,7 @@ fn main() {
                                 color: color,
                                 type_: p.type_,
                                 direction: direction,
+                                energy: p.energy,
                             });
                         }
                         serde_json::to_string(&data).unwrap().to_string()
@@ -215,6 +217,13 @@ fn main() {
                     let msg = tungstenite::Message::Text(data);
                     let sockets = &mut *sockets_lock_clone.write().unwrap();
                     for i in 0..sockets.len() {
+
+                        /*let msg_cloe = msg.clone();
+                        let websocket_b = &mut sockets[i];
+                        thread::spawn(move || {
+                            websocket_b.write_message(msg_cloe).unwrap();
+                        });*/
+
                         let websocket = &mut sockets[i];
                         match websocket.write_message(msg.clone()) {
                             Ok(_) => {
@@ -227,7 +236,6 @@ fn main() {
                         }
                     }
                     let duration_c = SystemTime::now().duration_since(start_time).unwrap().as_millis();
-                    println!("sockets: {}", sockets.len());
                     println!("duration_a: {}", duration_a);
                     println!("duration_b: {}", duration_b);
                     println!("duration_c: {}", duration_c);

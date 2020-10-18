@@ -7,11 +7,9 @@
     "x": 0,
     "y": 0
   },
-  "thread_count": {
-    "value": 4,
-  },
+  "thread_count": "auto",
   "constants": {
-    "use_distance_traveled_as_fitness_function": true,
+    "use_distance_traveled_as_fitness_function": false,
     "display_simulation_logs": false,
     "muscles_use_output": false,
     "collision_push_rate": 0.2,
