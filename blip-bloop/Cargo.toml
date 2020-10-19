@@ -1,0 +1,10 @@
+[package]
+name = "blip-bloop"
+version = "0.0.1"
+authors = ["loicbourgois <loic@bourgois.pro>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rapier2d = "0.2.1"

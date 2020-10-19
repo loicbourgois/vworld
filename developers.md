@@ -4,6 +4,8 @@
 
 ```bash
 export vworld_root_folder=$HOME/github/vworld
+$vworld_root_folder/scripts/blip-bloop.sh
+
 configuration_name="demo" $vworld_root_folder/scripts/vworld-server-start.sh
 
 $vworld_root_folder/scripts/setup-server.sh
