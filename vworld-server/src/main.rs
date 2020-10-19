@@ -617,8 +617,7 @@ fn main() {
     for stream in server.incoming() {
         println!("incoming");
         let chunk_lock_clone = Arc::clone(&chunk_lock);
-        //let sockets_lock_clone = Arc::clone(&sockets_lock);
-            let client_data_lock_clone = Arc::clone(&client_data_lock);
+        let client_data_lock_clone = Arc::clone(&client_data_lock);
         thread::spawn (move || {
             let mut websocket = accept(stream.unwrap()).unwrap();
             let message = websocket.read_message().unwrap();
@@ -632,18 +631,13 @@ fn main() {
                                 // Do nothing
                             },
                             Err(error) => {
-                                //errored_socket_ids.push(i);
                                 println!("error writer socket: {}", error);
-                                // sockets_count--;
                                 break;
                             }
                         }
                     }
                     thread::sleep(Duration::from_millis(10));
                 }
-                //let mut sockets = sockets_lock_clone.write().unwrap();
-                //(*sockets).push(websocket);
-                //TOOD: write loop sokcet here
             } else {
                 loop {
                     match websocket.read_message() {
