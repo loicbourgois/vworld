@@ -13,6 +13,7 @@ use crate::point::Point;
 mod entity;
 mod chunk;
 mod compute;
+use crate::particle::Color;
 use crate::compute::ComputeInputData;
 use crate::compute::ComputeOutputData;
 use crate::chunk::Chunk;
@@ -61,10 +62,32 @@ pub struct BestDna {
     pub dna: Vec<f64>,
     pub distance_traveled: f64,
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Copy, Clone, Serialize, Deserialize)]
 pub struct BestDnaStat {
     pub age_in_ticks: u32,
     pub distance_traveled: f64,
+}
+#[derive(Serialize, Deserialize)]
+struct ParticleClientData {
+    x: f64,
+    y: f64,
+    diameter: f64,
+    color: Color,
+    type_: ParticleType,
+    direction: Vector,
+    energy: f64,
+}
+#[derive(Serialize, Deserialize)]
+struct Data {
+    step: u32,
+    stats: Vec<Stats>,
+    particles: Vec<ParticleClientData>,
+    constants: Constants,
+    real_time_ms: u128,
+    best_dna_ever_by_age: BestDnaStat,
+    best_dna_alive_by_age: BestDnaStat,
+    best_dna_ever_by_distance_traveled: BestDnaStat,
+    best_dna_alive_by_distance_traveled: BestDnaStat,
 }
 fn main() {
     let address: String = env::var("vworld_address").unwrap();
@@ -117,42 +140,76 @@ fn main() {
             }
         }));
     }
-    // Wesocket write thread
-    let sockets: Vec<tungstenite::WebSocket<_>> = Vec::new();
-    let sockets_lock = Arc::new(RwLock::new(sockets));
+    let client_data = "".to_string();
+    let client_data_lock = Arc::new(RwLock::new(client_data));
     {
         let chunk_lock_clone = Arc::clone(&chunk_lock);
-        let sockets_lock_clone = Arc::clone(&sockets_lock);
+        let client_data_lock_clone = Arc::clone(&client_data_lock);
         thread::spawn(move || {
             loop {
-                let sockets_len = {
-                    let mut errored_socket_ids = Vec::new();
-                    let json = serde_json::to_string(&*chunk_lock_clone.read().unwrap()).unwrap().to_string();
-                    let msg = tungstenite::Message::Text(json);
-                    let sockets = &mut *sockets_lock_clone.write().unwrap();
-                    for i in 0..sockets.len() {
-                        let websocket = &mut sockets[i];
-                        match websocket.write_message(msg.clone()) {
-                            Ok(_) => {
-                                // Do nothing
+                let data = {
+                    let chunk_read = &*chunk_lock_clone.read().unwrap();
+                    let mut data = Data {
+                        step: chunk_read.step,
+                        particles: Vec::new(),
+                        stats: chunk_read.stats.to_vec(),
+                        constants: chunk_read.constants,
+                        real_time_ms: chunk_read.real_time_ms,
+                        best_dna_ever_by_age: BestDnaStat{
+                            age_in_ticks: chunk_read.best_dna_ever_by_age.age_in_ticks,
+                            distance_traveled: chunk_read.best_dna_ever_by_age.distance_traveled,
+                        },
+                        best_dna_alive_by_age: BestDnaStat{
+                            age_in_ticks: chunk_read.best_dna_alive_by_age.age_in_ticks,
+                            distance_traveled: chunk_read.best_dna_alive_by_age.distance_traveled,
+                        },
+                        best_dna_ever_by_distance_traveled: BestDnaStat{
+                            age_in_ticks: chunk_read.best_dna_ever_by_distance_traveled.age_in_ticks,
+                            distance_traveled: chunk_read.best_dna_ever_by_distance_traveled.distance_traveled,
+                        },
+                        best_dna_alive_by_distance_traveled: BestDnaStat{
+                            age_in_ticks: chunk_read.best_dna_alive_by_distance_traveled.age_in_ticks,
+                            distance_traveled: chunk_read.best_dna_alive_by_distance_traveled.distance_traveled,
+                        },
+                    };
+                    for p in chunk_read.particles.values() {
+                        let color = match p.data {
+                            ParticleData::PlantData {color} => {
+                                color
                             },
-                            Err(error) => {
-                                errored_socket_ids.push(i);
-                                println!("error socket #{}: {}", i, error)
+                            _ => {
+                                Color {
+                                    r: 0.5,
+                                    g: 0.5,
+                                    b: 0.5
+                                }
                             }
-                        }
+                        };
+                        let direction = match p.data {
+                            ParticleData::EyeData {direction} => {
+                                direction
+                            },
+                            ParticleData::MouthData {direction} => {
+                                direction
+                            },
+                            _ => {
+                                Vector {x: 0.0, y: 0.0}
+                            },
+                        };
+                        data.particles.push(ParticleClientData{
+                            x: p.x,
+                            y: p.y,
+                            diameter: p.diameter,
+                            color: color,
+                            type_: p.type_,
+                            direction: direction,
+                            energy: p.energy,
+                        });
                     }
-                    errored_socket_ids.reverse();
-                    for errored_socket_id in errored_socket_ids {
-                        sockets.remove(errored_socket_id);
-                    }
-                    sockets.len()
+                    data
                 };
-                if sockets_len == 0 {
-                    thread::sleep(Duration::from_millis(1000));
-                } else {
-                    thread::sleep(Duration::from_millis(60));
-                }
+                *(client_data_lock_clone.write().unwrap()) = serde_json::to_string(&data).unwrap().to_string();
+                thread::sleep(Duration::from_millis(10));
             }
         });
     }
@@ -560,14 +617,27 @@ fn main() {
     for stream in server.incoming() {
         println!("incoming");
         let chunk_lock_clone = Arc::clone(&chunk_lock);
-        let sockets_lock_clone = Arc::clone(&sockets_lock);
+        let client_data_lock_clone = Arc::clone(&client_data_lock);
         thread::spawn (move || {
             let mut websocket = accept(stream.unwrap()).unwrap();
             let message = websocket.read_message().unwrap();
             println!("message: {}", message);
             if message == tungstenite::Message::Text("Hello Server!".to_string()) {
-                let mut sockets = sockets_lock_clone.write().unwrap();
-                (*sockets).push(websocket);
+                loop {
+                    {
+                        let message_write = tungstenite::Message::Text(client_data_lock_clone.read().unwrap().to_string());
+                        match websocket.write_message(message_write) {
+                            Ok(_) => {
+                                // Do nothing
+                            },
+                            Err(error) => {
+                                println!("error writer socket: {}", error);
+                                break;
+                            }
+                        }
+                    }
+                    thread::sleep(Duration::from_millis(10));
+                }
             } else {
                 loop {
                     match websocket.read_message() {

@@ -50,7 +50,7 @@ struct ParticleConfiguration {
     diameter: f64,
     mass: f64
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct Stats {
     pub step: u32,
     pub real_time_s: f64,
