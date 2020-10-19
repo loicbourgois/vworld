@@ -15,7 +15,12 @@
     "collision_push_rate": 0.2,
     "drag_coefficient": 10.0,
     "link_length_coefficient": 1.01,
-    "link_strengh_default": 10.5,
+    "link_strengh": {
+      "min": 0.1,
+      "max": 100,
+      "step": 0.1,
+      "value": 10.5,
+    },
     "diameter_muscle_change_rate": 0.1,
     "delta_time": 0.01,
     "default_mass": 0.1,
