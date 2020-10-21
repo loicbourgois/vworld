@@ -64,9 +64,12 @@ const connect = () => {
     //reader.binaryType = "arraybuffer";
     let writer = new WebSocket(url);
     //reader.binaryType = "arraybuffer";
+    let latency_checker = new WebSocket(url);
     data.socket_pairs.push({
       'reader': reader,
-      'writer': writer
+      'writer': writer,
+      'latency_checker': latency_checker,
+      'latency_ms': [],
     })
     setup_socket_pair(data.socket_pairs[data.socket_pairs.length - 1])
   } catch(error) {
@@ -123,7 +126,7 @@ const setup_socket_pair = (socket_pair) => {
       };
   });
   socket_pair.writer.addEventListener('close', function (event) {
-      log(`[writer] connection closed: ${socket_pair.reader.url}`)
+      log(`[writer] connection closed: ${socket_pair.writer.url}`)
   });
   socket_pair.writer.addEventListener('error', function (event) {
       console.log('[writer] error')
@@ -131,6 +134,40 @@ const setup_socket_pair = (socket_pair) => {
   socket_pair.writer.addEventListener('message', (event) => {
     // do nothing
   });
+  socket_pair.latency_checker.addEventListener('open', function (event) {
+      socket_pair.latency_checker.send('latency_checker')
+      log(`[checker] connected: ${socket_pair.latency_checker.url}`)
+      window.onbeforeunload = function() {
+          socket_pair.latency_checker.onclose = function () {};
+          socket_pair.latency_checker.close();
+      };
+      check_latency_start(socket_pair)
+  });
+  socket_pair.latency_checker.addEventListener('close', function (event) {
+      log(`[checker] connection closed: ${socket_pair.latency_checker.url}`)
+  });
+  socket_pair.latency_checker.addEventListener('error', function (event) {
+      console.log('[checker] error')
+  });
+  socket_pair.latency_checker.addEventListener('message', (event) => {
+    check_latency_end(socket_pair)
+  });
+}
+const check_latency_start = (socket_pair) => {
+  socket_pair.check_start_ms = Date.now()
+  socket_pair.latency_checker.send('check')
+}
+const check_latency_end = (socket_pair) => {
+  socket_pair.check_end_ms = Date.now()
+  socket_pair.latency_ms.push((socket_pair.check_end_ms - socket_pair.check_start_ms) / 2)
+  while (socket_pair.latency_ms.length > 10) {
+    socket_pair.latency_ms.shift()
+  }
+  const average_latency = socket_pair.latency_ms.reduce((a,b) => (a+b)) / socket_pair.latency_ms.length
+  document.getElementById('latency').innerHTML = average_latency.toFixed(0) + " ms";
+  setTimeout(() => {
+    check_latency_start(socket_pair)
+  }, 100)
 }
 const start_render_loop = () => {
   log(`starting rendering`)
