@@ -638,7 +638,23 @@ fn main() {
                     }
                     thread::sleep(Duration::from_millis(10));
                 }
-            } else {
+            } else if message == tungstenite::Message::Text("latency_checker".to_string()) {
+                loop {
+                    match websocket.read_message() {
+                        Ok(message) => {
+                            if message == tungstenite::Message::Text("check".to_string()) {
+                                websocket.write_message(tungstenite::Message::Text("check_back".to_string())).unwrap();
+                            } else {
+                                println!("message not handled: {}", message);
+                            }
+                        },
+                        Err(error) => {
+                            println!("error: {}", error);
+                            break;
+                        }
+                    }
+                }
+            } else if message == tungstenite::Message::Text("writer".to_string()) {
                 loop {
                     match websocket.read_message() {
                         Ok(message) => {
@@ -663,6 +679,8 @@ fn main() {
                         }
                     }
                 }
+            } else {
+                println!("starting message not handled: {}", message);
             }
         });
     }
