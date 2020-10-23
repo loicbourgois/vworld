@@ -222,7 +222,8 @@ const render_stats_distance = () => {
         'best_dna_alive_by_age',
         'best_dna_ever_by_age',
         'best_dna_alive_by_distance_traveled',
-        'best_dna_ever_by_distance_traveled'
+        'best_dna_ever_by_distance_traveled',
+        'averages',
       ].forEach(element => {
         let p = {
           x: x,
@@ -248,6 +249,7 @@ const render_stats_age = () => {
       'best_dna_ever_by_distance_traveled',
       'best_dna_alive_by_age',
       'best_dna_ever_by_age',
+      'averages',
     ].forEach(element => {
       let p = {
         x: x,

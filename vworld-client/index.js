@@ -10,6 +10,7 @@ const conf = {
     'best_dna_ever_by_age': '#afa',
     'best_dna_alive_by_age': '#aaf',
     'best_dna_alive_by_distance_traveled': '#ffa',
+    'averages': '#aaa',
     'eye': {
       'white': '#eee',
       'black': '#111'

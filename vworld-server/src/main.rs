@@ -2,6 +2,7 @@
 mod point;
 mod vector;
 mod particle;
+mod stat;
 use crate::particle::Particle;
 use crate::particle::ParticleData;
 use crate::particle::ParticleType;
@@ -332,11 +333,6 @@ fn main() {
                     for _ in 0..bloop_to_add_count {
                         add_new_bloop(&mut chunk);
                     }
-                    // Energy
-                    //let mut energy_delta_by_puuid: HashMap<puuid, f64> = HashMap::new();
-                    //for puuid in chunk.particles.keys() {
-                    //    energy_delta_by_puuid.insert(*puuid, 0.0);
-                    //}
                     // Energy drop
                     let plant_energy_drop_rate_per_tick = chunk.constants.plant.energy_drop_rate_per_tick;
                     let plant_energy_drop_rate_per_tick_circle = chunk.constants.plant.energy_drop_rate_per_tick_circle;
@@ -476,6 +472,8 @@ fn main() {
                         distance_traveled: 0.0,
                         dna: Vec::new(),
                     };
+                    let mut age_in_ticks_vec = Vec::new();
+                    let mut distance_traveled_vec = Vec::new();
                     for entity in chunk.entities.values() {
                         match entity.type_ {
                             EntityType::Plant => {
@@ -483,9 +481,11 @@ fn main() {
                             },
                             EntityType::Bloop => {
                                 let age_in_ticks = chunk.step - entity.tick_start;
+                                age_in_ticks_vec.push(age_in_ticks);
                                 let distance_traveled = Vector::new_2(
                                         entity.x_start, entity.y_start, entity.x, entity.y
                                     ).length();
+                                distance_traveled_vec.push(distance_traveled);
                                 if age_in_ticks > new_best_dna_ever_by_age.age_in_ticks {
                                     new_best_dna_ever_by_age = BestDna {
                                         age_in_ticks: age_in_ticks,
@@ -553,6 +553,8 @@ fn main() {
                         let current_steps_per_second = steps_delta as f64 / real_time_s_delta;
                         let steps_per_second = chunk.step as f64 / real_time_s;
                         let current_simulation_speed = simulation_time_s_delta / real_time_s_delta;
+                        let average_age_in_ticks = mean_u32(&age_in_ticks_vec);
+                        let average_distance_traveled = mean(&distance_traveled_vec);
                         let stats = Stats {
                             step: chunk.step,
                             best_dna_ever_by_age: BestDnaStat {
@@ -574,6 +576,10 @@ fn main() {
                                 age_in_ticks: chunk.best_dna_alive_by_distance_traveled.age_in_ticks,
                                 //dna: chunk.best_dna_alive_by_distance_traveled.dna.to_vec(),
                                 distance_traveled: chunk.best_dna_alive_by_distance_traveled.distance_traveled,
+                            },
+                            averages: stat::AverageStat {
+                                age_in_ticks: average_age_in_ticks,
+                                distance_traveled: average_distance_traveled,
                             },
                             real_time_s: real_time_s,
                             simulation_time_s: simulation_time_s,
@@ -687,4 +693,12 @@ fn main() {
             }
         });
     }
+}
+fn mean(v: &Vec<f64>) -> f64 {
+    let sum: f64 = Iterator::sum(v.iter());
+    sum / (v.len() as f64)
+}
+fn mean_u32(v: &Vec<u32>) -> u32 {
+    let sum: u32 = Iterator::sum(v.iter());
+    sum / (v.len() as u32)
 }
