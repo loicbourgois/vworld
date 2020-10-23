@@ -1,4 +1,7 @@
 const render = () => {
+  if (document.getElementById('get_true_ping').checked) {
+    return
+  }
   const zoom = parseFloat(document.querySelector("#slider_1").value) / 1000.0 * 9.0 + 1.0
   if (!chunk.step) {
     return

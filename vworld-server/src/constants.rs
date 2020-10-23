@@ -17,6 +17,7 @@ pub struct Constants {
     pub energy_min: f64,
     pub eye_sight_length: f64,
     pub mouth_energy_eating_rate_per_second: f64,
+    pub mouth_energy_consumption_rate_per_second: f64,
     pub bloop: EntityConstants,
     pub plant: PlantConstants,
     pub enable_auto_link_6: bool,

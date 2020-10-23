@@ -20,8 +20,8 @@
     "delta_time": 0.01,
     "default_mass": 0.1,
     "default_diameter": 0.01,
-    "min_body_parts_count": 10,
-    "max_body_parts_count": 10,
+    "min_body_parts_count": 15,
+    "max_body_parts_count": 15,
     "max_stats_count": 1000,
     "plant": {
       "mutation_rate": 1.0,
@@ -49,6 +49,7 @@
     "energy_min": 0.0,
     "eye_sight_length": 0.02,
     "mouth_energy_eating_rate_per_second": 1.0,
+    "mouth_energy_consumption_rate_per_second": 0.01,
     "enable_auto_link_6": true,
     "destroy_unstable_entities": true
   },
