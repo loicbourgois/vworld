@@ -333,19 +333,41 @@ fn main() {
                         add_new_bloop(&mut chunk);
                     }
                     // Energy
-                    let mut energy_delta_by_puuid: HashMap<puuid, f64> = HashMap::new();
-                    for puuid in chunk.particles.keys() {
-                        energy_delta_by_puuid.insert(*puuid, 0.0);
-                    }
-                    let bloop_energy_drop_rate_per_tick = chunk.constants.bloop.energy_drop_rate_per_tick;
+                    //let mut energy_delta_by_puuid: HashMap<puuid, f64> = HashMap::new();
+                    //for puuid in chunk.particles.keys() {
+                    //    energy_delta_by_puuid.insert(*puuid, 0.0);
+                    //}
+                    // Energy drop
                     let plant_energy_drop_rate_per_tick = chunk.constants.plant.energy_drop_rate_per_tick;
                     let plant_energy_drop_rate_per_tick_circle = chunk.constants.plant.energy_drop_rate_per_tick_circle;
                     let energy_min = chunk.constants.energy_min;
+                    let energy_max = chunk.constants.energy_max;
+                    let bloop_energy_drop_rate_per_tick = chunk.constants.bloop.energy_drop_rate_per_tick;
+                    let mouth_energy_consumption_rate_per_tick = chunk.constants.mouth_energy_consumption_rate_per_second * chunk.constants.delta_time;
+                    for particle in &mut chunk.particles.values_mut() {
+                        match particle.type_ {
+                            ParticleType::Plant => {
+                                let plant_drop_rate = plant_energy_drop_rate_per_tick
+                                    + plant_energy_drop_rate_per_tick_circle * Point::get_distance(particle.x, particle.y, 0.5, 0.5);
+                                particle.energy -= plant_drop_rate;
+                                if particle.x < 0.0 || particle.x > 1.0 || particle.y < 0.0 || particle.y > 1.0 {
+                                    particle.energy = -1.0;
+                                }
+                            },
+                            ParticleType::Mouth => {
+                                particle.energy -= bloop_energy_drop_rate_per_tick + mouth_energy_consumption_rate_per_tick;
+                            },
+                            _ => {
+                                particle.energy -= bloop_energy_drop_rate_per_tick;
+                            }
+                        }
+                        particle.energy = particle.energy.min(energy_max);
+                    }
+                    // Energy transfer
                     let mut puuid_pairs: Vec<[puuid; 2]> = Vec::new();
                     for link in chunk.links.values() {
                         puuid_pairs.push(link.puuids);
                     }
-                    // Energy transfer
                     for puuid_pair in puuid_pairs.iter() {
                         let puuid_a = puuid_pair[0];
                         let puuid_b = puuid_pair[1];
@@ -357,29 +379,10 @@ fn main() {
                         chunk.particles.get_mut(&puuid_a).unwrap().energy = energy;
                         chunk.particles.get_mut(&puuid_b).unwrap().energy = energy;
                     }
-                    // Energy drop
-                    let energy_max = chunk.constants.energy_max;
-                    for particle in &mut chunk.particles.values_mut() {
-                        match particle.type_ {
-                            ParticleType::Plant => {
-                                let plant_drop_rate = plant_energy_drop_rate_per_tick
-                                    + plant_energy_drop_rate_per_tick_circle * Point::get_distance(particle.x, particle.y, 0.5, 0.5);
-                                particle.energy -= plant_drop_rate;
-                                if particle.x < 0.0 || particle.x > 1.0 || particle.y < 0.0 || particle.y > 1.0 {
-                                    particle.energy = -1.0;
-                                }
-                            },
-                            _ => {
-                                particle.energy -= bloop_energy_drop_rate_per_tick
-                            }
-                        }
-                        particle.energy = particle.energy.min(energy_max)
-                    }
-                    // Kill
+                    // Prepare remove
                     let mut entities_to_remove: HashSet<euuid> = HashSet::new();
                     let mut particles_to_remove: HashSet<puuid> = HashSet::new();
                     for (puuid, particle) in  chunk.particles.iter() {
-                        // Kill particle
                         if particle.energy <= energy_min {
                             particles_to_remove.insert(*puuid);
                             match particle.type_ {
@@ -395,6 +398,62 @@ fn main() {
                             entities_to_remove.insert(particle.euuid);
                             println!("destroy_unstable_entities");
                         }
+                    }
+                    // Remove entities
+                    for (euuid, entity) in chunk.entities.iter() {
+                        if entity.puuids.len() == 0 {
+                            entities_to_remove.insert(*euuid);
+                        }
+                    }
+                    for euuid in entities_to_remove.iter() {
+                        for puuid in chunk.entities.get(euuid).unwrap().puuids.iter() {
+                            particles_to_remove.insert(*puuid);
+                        }
+                    }
+                    // Remove particle
+                    let mut links_to_remove: HashSet<luuid> = HashSet::new();
+                    let mut particle_links_to_remove: HashMap<puuid, HashSet<luuid>> = HashMap::new();
+                    for puuid in particles_to_remove.iter() {
+                        let mut links_to_remove_tmp: HashSet<luuid> = HashSet::new();
+                        for luuid in chunk.particles.get(puuid).unwrap().links.keys() {
+                            links_to_remove.insert(*luuid);
+                            links_to_remove_tmp.insert(*luuid);
+                        }
+                        particle_links_to_remove.insert(*puuid, links_to_remove_tmp);
+                        let euuid = chunk.particles.get(puuid).unwrap().euuid;
+                        chunk.entities.get_mut(&euuid).unwrap().puuids.remove(puuid);
+                    }
+                    // Remove links
+                    for luuid in links_to_remove.iter() {
+                        for particle in chunk.particles.values_mut() {
+                            particle.links.remove(luuid);
+                        }
+                        chunk.links.remove(&luuid);
+                    }
+                    // Remove particles
+                    for puuid in particles_to_remove.iter() {
+                        chunk.particles.remove(puuid);
+                    }
+                    // Remove entities
+                    for euuid in entities_to_remove.iter() {
+                        chunk.entities.remove(euuid);
+                    }
+                    // Update entity position
+                    let mut entities_coord: HashMap<euuid, (f64, f64)> = HashMap::new();
+                    for particle in chunk.particles.values() {
+                        match particle.type_ {
+                            ParticleType::Heart => {
+                                entities_coord.insert(particle.euuid, (particle.x, particle.y));
+                            },
+                            ParticleType::Plant => {
+                                entities_coord.insert(particle.euuid, (particle.x, particle.y));
+                            },
+                            _ => ()
+                        }
+                    }
+                    for (euuid, coord) in entities_coord.iter() {
+                        chunk.entities.get_mut(euuid).unwrap().x = coord.0;
+                        chunk.entities.get_mut(euuid).unwrap().y = coord.1;
                     }
                     // Best dna
                     let mut new_best_dna_ever_by_age = BestDna {
@@ -470,62 +529,6 @@ fn main() {
                     chunk.best_dna_alive_by_distance_traveled.age_in_ticks = new_best_dna_alive_by_distance_traveled.age_in_ticks;
                     chunk.best_dna_alive_by_distance_traveled.distance_traveled = new_best_dna_alive_by_distance_traveled.distance_traveled.max(0.0);
                     chunk.best_dna_alive_by_distance_traveled.dna = new_best_dna_alive_by_distance_traveled.dna.to_vec();
-                    // Remove entities
-                    for (euuid, entity) in chunk.entities.iter() {
-                        if entity.puuids.len() == 0 {
-                            entities_to_remove.insert(*euuid);
-                        }
-                    }
-                    for euuid in entities_to_remove.iter() {
-                        for puuid in chunk.entities.get(euuid).unwrap().puuids.iter() {
-                            particles_to_remove.insert(*puuid);
-                        }
-                    }
-                    // Remove particle
-                    let mut links_to_remove: HashSet<luuid> = HashSet::new();
-                    let mut particle_links_to_remove: HashMap<puuid, HashSet<luuid>> = HashMap::new();
-                    for puuid in particles_to_remove.iter() {
-                        let mut links_to_remove_tmp: HashSet<luuid> = HashSet::new();
-                        for luuid in chunk.particles.get(puuid).unwrap().links.keys() {
-                            links_to_remove.insert(*luuid);
-                            links_to_remove_tmp.insert(*luuid);
-                        }
-                        particle_links_to_remove.insert(*puuid, links_to_remove_tmp);
-                        let euuid = chunk.particles.get(puuid).unwrap().euuid;
-                        chunk.entities.get_mut(&euuid).unwrap().puuids.remove(puuid);
-                    }
-                    // Remove links
-                    for luuid in links_to_remove.iter() {
-                        for particle in chunk.particles.values_mut() {
-                            particle.links.remove(luuid);
-                        }
-                        chunk.links.remove(&luuid);
-                    }
-                    // Remove particles
-                    for puuid in particles_to_remove.iter() {
-                        chunk.particles.remove(puuid);
-                    }
-                    // Remove entities
-                    for euuid in entities_to_remove.iter() {
-                        chunk.entities.remove(euuid);
-                    }
-                    // Update entity position
-                    let mut entities_coord: HashMap<euuid, (f64, f64)> = HashMap::new();
-                    for particle in chunk.particles.values() {
-                        match particle.type_ {
-                            ParticleType::Heart => {
-                                entities_coord.insert(particle.euuid, (particle.x, particle.y));
-                            },
-                            ParticleType::Plant => {
-                                entities_coord.insert(particle.euuid, (particle.x, particle.y));
-                            },
-                            _ => ()
-                        }
-                    }
-                    for (euuid, coord) in entities_coord.iter() {
-                        chunk.entities.get_mut(euuid).unwrap().x = coord.0;
-                        chunk.entities.get_mut(euuid).unwrap().y = coord.1;
-                    }
                     // Stats
                     let real_time_s = chunk.real_time_ms as f64 * 0.001;
                     chunk.particles_count = chunk.particles.len() as u32;

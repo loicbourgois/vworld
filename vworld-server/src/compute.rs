@@ -325,7 +325,6 @@ fn detect_collision(p1: & Particle, p2: & Particle) -> bool {
     let radiuses_squared = radiuses * radiuses;
     distance_squared_centers < radiuses_squared
 }
-
 fn setup_forces(
     forces_by_puuid: &mut HashMap<puuid, Vector>,
     chunk: &Chunk,
@@ -388,24 +387,6 @@ fn update_from_forces(
         //mpu.y_old += p.y - p.y_old;
     }
 }
-
-    //delta_x =
-
-    //for (puuid, force) in forces_by_puuid.iter() {
-    //    update_position_verlet(&mut chunk.particles.get_mut(puuid).unwrap(), &force, delta_time);
-    //}
-
-    /*fn update_position_verlet(p: &mut Particle, forces: &Vector, delta_time: f64) {
-        let current_x = p.x;
-        let current_y = p.y;
-        let acceleration_x = forces.x / p.mass;
-        let acceleration_y = forces.y / p.mass;
-        dpx =
-        p.y = 2.0 * current_y - p.y_old + acceleration_y * delta_time * delta_time;
-        p.x_old = current_x;
-        p.y_old = current_y;
-    }*/
-
 fn get_link_force(p1: &Particle, p2: &Particle, length: f64, strengh: f64) -> Vector {
     let x1 = p1.x;
     let y1 = p1.y;
