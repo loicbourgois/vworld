@@ -13,6 +13,7 @@ use crate::add_new_plant;
 use crate::add_new_bloop;
 use serde_json as json;
 use crate::ParticleType;
+use crate::stat::AverageStat;
 #[derive(Serialize, Deserialize)]
 pub struct Chunk {
     pub width: f64,
@@ -61,6 +62,7 @@ pub struct Stats {
     pub best_dna_alive_by_age: BestDnaStat,
     pub best_dna_ever_by_distance_traveled: BestDnaStat,
     pub best_dna_alive_by_distance_traveled: BestDnaStat,
+    pub averages: AverageStat,
 }
 #[derive(Clone, Copy, Serialize, Deserialize)]
 pub enum ThreadCount {
