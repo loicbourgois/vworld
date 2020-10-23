@@ -96,7 +96,7 @@ const log = (message) => {
 }
 const setup_socket_pair = (socket_pair) => {
   socket_pair.reader.addEventListener('open', function (event) {
-      socket_pair.reader.send('Hello Server!')
+      socket_pair.reader.send('client_reader')
       log(`[reader] connected: ${socket_pair.reader.url}`)
       start_render_loop()
       window.onbeforeunload = function() {
