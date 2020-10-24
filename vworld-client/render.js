@@ -210,6 +210,7 @@ const render = () => {
 const render_stats_distance = () => {
   let l = chunk.stats.length;
   let max_distance = chunk.best_dna_ever_by_distance_traveled.distance_traveled;
+  max_distance = max_distance ? max_distance : 0.0;
   let last_distance_alive = chunk.stats[l-1].best_dna_alive_by_age.distance_traveled;
   document.getElementById('best_ever_distance_traveled').innerHTML = max_distance.toFixed(5);
   document.getElementById('best_alive_distance_traveled').innerHTML = last_distance_alive.toFixed(5);

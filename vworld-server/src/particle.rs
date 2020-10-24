@@ -11,6 +11,8 @@ use crate::get_next_gene;
 use std::collections::HashSet;
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use crate::chunk::ParticleConfiguration;
+use crate::entity::PairInfo;
 #[derive(Copy, Clone, Serialize, Deserialize)]
 pub struct Color {
     pub r: f64,
@@ -73,8 +75,77 @@ pub struct Particle {
     pub is_colliding_other_entity: bool,
     pub max_contraction: f64,
 }
-pub fn add_first_particle(chunk: &mut Chunk, euuid: &euuid, mut rng: &mut rand::prelude::ThreadRng) -> puuid {
+pub fn get_genes_first_particle(entity: &mut Entity, mut rng: &mut rand::prelude::ThreadRng) -> [f64;5] {
+    let mut genes = [0.0;5];
+    for i in 0..genes.len() {
+        genes[i] = get_next_gene(entity, &mut rng);
+    }
+    return genes;
+}
+pub fn get_genes_second_particle(entity: &mut Entity, mut rng: &mut rand::prelude::ThreadRng) -> [f64;13] {
+    let mut genes = [0.0;13];
+    for i in 0..genes.len() {
+        genes[i] = get_next_gene(entity, &mut rng);
+    }
+    return genes;
+}
+pub fn get_genes_other_particle(entity: &mut Entity, mut rng: &mut rand::prelude::ThreadRng) -> [f64;17] {
+    let mut genes = [0.0;17];
+    for i in 0..genes.len() {
+        genes[i] = get_next_gene(entity, &mut rng);
+    }
+    return genes;
+}
+
+
+
+pub fn get_genes_first_particle_from_conf(particle_conf: &ParticleConfiguration) -> [f64;5] {
+    let mut genes = [0.5;5];
+    genes[0] = 1.0;
+    match particle_conf.frequency {
+        Some(v) => genes[1] = v,
+        None => {}
+    }
+    match particle_conf.phase {
+        Some(v) => genes[2] = v,
+        None => {}
+    }
+    return genes;
+}
+pub fn get_genes_second_particle_from_conf(particle_conf: &ParticleConfiguration) -> [f64;13] {
+    let mut genes = [0.5;13];
+    let genes_first =  get_genes_first_particle_from_conf(particle_conf);
+    for i in 0..genes_first.len() {
+        genes[i] = genes_first[i];
+    }
+    match particle_conf.type_ {
+        ParticleType::Muscle =>     genes[5] = 0.75,
+        ParticleType::Eye =>        genes[6] = 0.75,
+        ParticleType::Mouth =>      genes[7] = 0.75,
+        ParticleType::Default =>    genes[8] = 0.75,
+        _ => {}
+    };
+    return genes;
+}
+pub fn get_genes_particle_from_conf(particle_conf: &ParticleConfiguration) -> [f64;17] {
+    let mut genes = [0.5;17];
+    let genes_second =  get_genes_second_particle_from_conf(particle_conf);
+    for i in 0..genes_second.len() {
+        genes[i] = genes_second[i];
+    }
+    return genes;
+}
+
+pub fn add_first_particle(chunk: &mut Chunk, euuid: &euuid, rng: &mut rand::prelude::ThreadRng) -> puuid {
     let entity = chunk.entities.get_mut(euuid).unwrap();
+    // get genes
+    let genes = get_genes_first_particle(entity, rng);
+    let duplication_coefficient =   genes[0];
+    let frequency =                 genes[1];
+    let phase =                     genes[2];
+    let bias_weight =               genes[3];
+    let max_contraction =           genes[4] * chunk.constants.bloop.max_contraction;
+    //
     let energy = chunk.constants.bloop.starting_energy;
     let puuid = bob::new_v4().as_u128();
     chunk.particles.insert(puuid, Particle{
@@ -90,14 +161,14 @@ pub fn add_first_particle(chunk: &mut Chunk, euuid: &euuid, mut rng: &mut rand::
         energy: energy,
         euuid: *euuid,
         links: HashMap::new(),
-        duplication_coefficient: get_next_gene(entity, &mut rng),
-        frequency: get_next_gene(entity, &mut rng),
-        phase: get_next_gene(entity, &mut rng),
+        duplication_coefficient: duplication_coefficient,
+        frequency: frequency,
+        phase: phase,
         data: ParticleData::None,
-        output: get_next_gene(entity, &mut rng),
-        bias_weight: get_next_gene(entity, &mut rng),
+        output: 0.0,
+        bias_weight: bias_weight,
         is_colliding_other_entity: false,
-        max_contraction: get_next_gene(entity, &mut rng) * chunk.constants.bloop.max_contraction,
+        max_contraction: max_contraction,
     });
     entity.puuids.insert(puuid);
     return puuid;
@@ -118,17 +189,29 @@ fn get_cell_type(genes: [f64; 4]) -> ParticleType {
         _ => ParticleType::Default
     }
 }
-pub fn add_second_particle(chunk: &mut Chunk, euuid: &euuid, mut rng: &mut rand::prelude::ThreadRng, puuid_a: puuid) {
+pub fn add_second_particle(chunk: &mut Chunk, euuid: &euuid, rng: &mut rand::prelude::ThreadRng, puuid_a: puuid) {
     let entity = chunk.entities.get_mut(euuid).unwrap();
     let energy = chunk.constants.bloop.starting_energy;
     let puuid_b = bob::new_v4().as_u128();
     let luuid = bob::new_v4().as_u128();
-    let type_ = get_cell_type([
-        get_next_gene(entity, &mut rng),
-        get_next_gene(entity, &mut rng),
-        get_next_gene(entity, &mut rng),
-        get_next_gene(entity, &mut rng)
-    ]);
+    // get genes
+    let genes = get_genes_second_particle(entity, rng);
+    let duplication_coefficient =   genes[0];
+    let frequency =                 genes[1];
+    let phase =                     genes[2];
+    let bias_weight =               genes[3];
+    let max_contraction =           genes[4] * chunk.constants.bloop.max_contraction;
+    let cell_type_genes = [         genes[5],
+                                    genes[6],
+                                    genes[7],
+                                    genes[8]
+    ];
+    let gene_weight_a_b =           genes[9];
+    let gene_weight_b_a =           genes[10];
+    let gene_duplication_coefficient_a_b = genes[11];
+    let gene_duplication_coefficient_b_a = genes[12];
+    //
+    let type_ = get_cell_type(cell_type_genes);
     chunk.particles.insert(puuid_b, Particle{
         puuid: puuid_b,
         x: entity.x_start + chunk.constants.default_diameter,
@@ -142,27 +225,48 @@ pub fn add_second_particle(chunk: &mut Chunk, euuid: &euuid, mut rng: &mut rand:
         energy: energy,
         euuid: *euuid,
         links: HashMap::new(),
-        duplication_coefficient: get_next_gene(entity, &mut rng),
-        frequency: get_next_gene(entity, &mut rng),
-        phase: get_next_gene(entity, &mut rng),
+        duplication_coefficient: duplication_coefficient,
+        frequency: frequency,
+        phase: phase,
         data: ParticleData::None,
-        output: get_next_gene(entity, &mut rng),
-        bias_weight: get_next_gene(entity, &mut rng),
+        output: 0.0,
+        bias_weight: bias_weight,
         is_colliding_other_entity: false,
-        max_contraction: get_next_gene(entity, &mut rng) * chunk.constants.bloop.max_contraction,
+        max_contraction: max_contraction,
     });
     entity.puuids.insert(puuid_b);
-    add_link(chunk, *euuid, luuid, puuid_a, puuid_b, &mut rng);
+    add_link(chunk, *euuid, luuid, puuid_a, puuid_b,
+        gene_weight_a_b,
+        gene_weight_b_a,
+        gene_duplication_coefficient_a_b,
+        gene_duplication_coefficient_b_a
+    );
 }
 pub fn add_particle(chunk: &mut Chunk, euuid: &euuid, puuid_pair: [puuid; 2], mut rng: &mut rand::prelude::ThreadRng) {
     //let entity = chunk.entities.get_mut(euuid).unwrap();
     let energy = chunk.constants.bloop.starting_energy;
-    let type_ = get_cell_type([
-        get_next_gene(chunk.entities.get_mut(euuid).unwrap(), &mut rng),
-        get_next_gene(chunk.entities.get_mut(euuid).unwrap(), &mut rng),
-        get_next_gene(chunk.entities.get_mut(euuid).unwrap(), &mut rng),
-        get_next_gene(chunk.entities.get_mut(euuid).unwrap(), &mut rng)
-    ]);
+    // get genes
+    let genes = get_genes_other_particle(chunk.entities.get_mut(euuid).unwrap(), rng);
+    let duplication_coefficient =   genes[0];
+    let frequency =                 genes[1];
+    let phase =                     genes[2];
+    let bias_weight =               genes[3];
+    let max_contraction =           genes[4] * chunk.constants.bloop.max_contraction;
+    let cell_type_genes = [         genes[5],
+                                    genes[6],
+                                    genes[7],
+                                    genes[8]
+    ];
+    let gene_weight_a_c =           genes[9];
+    let gene_weight_c_a =           genes[10];
+    let gene_weight_b_c =           genes[11];
+    let gene_weight_c_b =           genes[12];
+    let gene_duplication_coefficient_a_c = genes[13];
+    let gene_duplication_coefficient_c_a = genes[14];
+    let gene_duplication_coefficient_b_c = genes[15];
+    let gene_duplication_coefficient_c_b = genes[16];
+    //
+    let type_ = get_cell_type(cell_type_genes);
     let puuid_a = puuid_pair[0];
     let puuid_b = puuid_pair[1];
     let puuid_c = bob::new_v4().as_u128();
@@ -187,20 +291,30 @@ pub fn add_particle(chunk: &mut Chunk, euuid: &euuid, puuid_pair: [puuid; 2], mu
         energy: energy,
         euuid: *euuid,
         links: HashMap::new(),
-        duplication_coefficient: get_next_gene(chunk.entities.get_mut(euuid).unwrap(), &mut rng),
-        frequency: get_next_gene(chunk.entities.get_mut(euuid).unwrap(), &mut rng),
-        phase: get_next_gene(chunk.entities.get_mut(euuid).unwrap(), &mut rng),
+        duplication_coefficient: duplication_coefficient,
+        frequency: frequency,
+        phase: phase,
         data: ParticleData::None,
-        output: get_next_gene(chunk.entities.get_mut(euuid).unwrap(), &mut rng),
-        bias_weight: get_next_gene(chunk.entities.get_mut(euuid).unwrap(), &mut rng),
+        output: 0.0,
+        bias_weight: bias_weight,
         is_colliding_other_entity: false,
-        max_contraction: get_next_gene(chunk.entities.get_mut(euuid).unwrap(), &mut rng) * chunk.constants.bloop.max_contraction,
+        max_contraction: max_contraction,
     });
-    add_pair(&mut chunk.entities.get_mut(euuid).unwrap().pairs_taken, puuid_a, puuid_b);
-    add_pair(&mut chunk.entities.get_mut(euuid).unwrap().pairs_taken, puuid_b, puuid_c);
-    add_pair(&mut chunk.entities.get_mut(euuid).unwrap().pairs_taken, puuid_c, puuid_a);
-    add_link(chunk, *euuid, luuid_a_c, puuid_a, puuid_c, &mut rng);
-    add_link(chunk, *euuid, luuid_b_c, puuid_b, puuid_c, &mut rng);
+    add_pair_taken(&mut chunk.entities.get_mut(euuid).unwrap().pairs_taken, puuid_a, puuid_b);
+    add_pair_taken(&mut chunk.entities.get_mut(euuid).unwrap().pairs_taken, puuid_b, puuid_c);
+    add_pair_taken(&mut chunk.entities.get_mut(euuid).unwrap().pairs_taken, puuid_c, puuid_a);
+    add_link(chunk, *euuid, luuid_a_c, puuid_a, puuid_c,
+        gene_weight_a_c,
+        gene_weight_c_a,
+        gene_duplication_coefficient_a_c,
+        gene_duplication_coefficient_c_a,
+    );
+    add_link(chunk, *euuid, luuid_b_c, puuid_b, puuid_c,
+        gene_weight_b_c,
+        gene_weight_c_b,
+        gene_duplication_coefficient_b_c,
+        gene_duplication_coefficient_c_b
+    );
     if chunk.constants.enable_auto_link_6
     {
         struct DataMember {
@@ -272,14 +386,24 @@ pub fn add_particle(chunk: &mut Chunk, euuid: &euuid, puuid_pair: [puuid; 2], mu
             }
         }
         for d in data {
-            add_link(chunk, d.euuid, d.luuid_a_b, d.puuid_a, d.puuid_b, &mut rng);
-            add_pair(&mut chunk.entities.get_mut(&d.euuid).unwrap().pairs_taken, d.puuid_a, d.puuid_c);
-            add_pair(&mut chunk.entities.get_mut(&d.euuid).unwrap().pairs_taken, d.puuid_c, d.puuid_a);
-            add_pair(&mut chunk.entities.get_mut(&d.euuid).unwrap().pairs_taken, d.puuid_b, d.puuid_c);
-            add_pair(&mut chunk.entities.get_mut(&d.euuid).unwrap().pairs_taken, d.puuid_c, d.puuid_b);
+            //println!("4 get_next_gene");
+            let gene_weight_a_b = get_next_gene(chunk.entities.get_mut(euuid).unwrap(), &mut rng);
+            let gene_weight_b_a = get_next_gene(chunk.entities.get_mut(euuid).unwrap(), &mut rng);
+            let gene_duplication_coefficient_a_b = get_next_gene(chunk.entities.get_mut(euuid).unwrap(), &mut rng);
+            let gene_duplication_coefficient_b_a = get_next_gene(chunk.entities.get_mut(euuid).unwrap(), &mut rng);
+            add_link(chunk, d.euuid, d.luuid_a_b, d.puuid_a, d.puuid_b,
+                gene_weight_a_b,
+                gene_weight_b_a,
+                gene_duplication_coefficient_a_b,
+                gene_duplication_coefficient_b_a,
+            );
+            add_pair_taken(&mut chunk.entities.get_mut(&d.euuid).unwrap().pairs_taken, d.puuid_a, d.puuid_c);
+            add_pair_taken(&mut chunk.entities.get_mut(&d.euuid).unwrap().pairs_taken, d.puuid_c, d.puuid_a);
+            add_pair_taken(&mut chunk.entities.get_mut(&d.euuid).unwrap().pairs_taken, d.puuid_b, d.puuid_c);
+            add_pair_taken(&mut chunk.entities.get_mut(&d.euuid).unwrap().pairs_taken, d.puuid_c, d.puuid_b);
             // Todo: only add pair taken in the correct direction
-            add_pair(&mut chunk.entities.get_mut(&d.euuid).unwrap().pairs_taken, d.puuid_a, d.puuid_b);
-            add_pair(&mut chunk.entities.get_mut(&d.euuid).unwrap().pairs_taken, d.puuid_b, d.puuid_a);
+            add_pair_taken(&mut chunk.entities.get_mut(&d.euuid).unwrap().pairs_taken, d.puuid_a, d.puuid_b);
+            add_pair_taken(&mut chunk.entities.get_mut(&d.euuid).unwrap().pairs_taken, d.puuid_b, d.puuid_a);
         }
     }
 }
@@ -338,20 +462,23 @@ fn add_link(
     luuid_a_b: luuid,
     puuid_a: puuid,
     puuid_b: puuid,
-    mut rng: &mut rand::prelude::ThreadRng
+    gene_weight_a_b: f64,
+    gene_weight_b_a: f64,
+    gene_duplication_coefficient_a_b: f64,
+    gene_duplication_coefficient_b_a: f64,
 ) {
     let entity = chunk.entities.get_mut(&euuid).unwrap();
-    add_pair(&mut entity.pairs, puuid_a, puuid_b);
-    add_pair(&mut entity.pairs, puuid_b, puuid_a);
+    add_pair(&mut entity.pairs, puuid_a, puuid_b, gene_duplication_coefficient_a_b);
+    add_pair(&mut entity.pairs, puuid_b, puuid_a, gene_duplication_coefficient_b_a);
     chunk.particles.get_mut(&puuid_a).unwrap().links.insert(luuid_a_b, ParticleLink{
         luuid: luuid_a_b,
         puuid_linked: puuid_b,
-        weight: get_next_gene(entity, &mut rng) * 2.0 - 1.0,
+        weight: gene_weight_a_b * 2.0 - 1.0,
     });
     chunk.particles.get_mut(&puuid_b).unwrap().links.insert(luuid_a_b, ParticleLink{
         luuid: luuid_a_b,
         puuid_linked: puuid_a,
-        weight: get_next_gene(entity, &mut rng) * 2.0 - 1.0,
+        weight: gene_weight_b_a * 2.0 - 1.0,
     });
     chunk.links.insert(luuid_a_b,
         Link{
@@ -360,7 +487,32 @@ fn add_link(
             puuids_str: [format!("{}", puuid_a), format!("{}", puuid_b)],
     });
 }
-fn add_pair(pairs: &mut HashMap<puuid, HashSet<puuid>>, puuid_a: puuid, puuid_b: puuid) {
+fn add_pair(
+    pairs: &mut HashMap<puuid, HashMap<puuid, PairInfo>>,
+    puuid_a: puuid,
+    puuid_b: puuid,
+    duplication_coefficient: f64,
+) {
+    match pairs.get_mut(&puuid_a) {
+        Some(hashmap) => {
+            hashmap.insert(puuid_b, PairInfo{
+                puuid_a: puuid_a,
+                puuid_b: puuid_b,
+                duplication_coefficient: duplication_coefficient,
+            });
+        },
+        None => {
+            let mut hashmap = HashMap::new();
+            hashmap.insert(puuid_b, PairInfo{
+                puuid_a: puuid_a,
+                puuid_b: puuid_b,
+                duplication_coefficient: duplication_coefficient,
+            });
+            pairs.insert(puuid_a, hashmap);
+        }
+    }
+}
+fn add_pair_taken(pairs: &mut HashMap<puuid, HashSet<puuid>>, puuid_a: puuid, puuid_b: puuid) {
     match pairs.get_mut(&puuid_a) {
         Some(hashmap) => {
             hashmap.insert(puuid_b);

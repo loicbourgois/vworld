@@ -330,7 +330,7 @@ fn main() {
                         add_new_plant(&mut chunk, None, None);
                     }
                     let bloop_to_add_count = chunk.constants.bloop.min_count as i32 - entities_by_type.get(&EntityType::Bloop).unwrap();
-                    for _ in 0..bloop_to_add_count {
+                    if bloop_to_add_count > 0 {
                         add_new_bloop(&mut chunk);
                     }
                     // Energy drop
@@ -622,7 +622,7 @@ fn main() {
     println!("server started");
     println!("  host:           {}", host);
     println!("  engine threads: {}", thread_count);
-    println!("  configuration:  {}", chunk_configuration_str);
+    // println!("  configuration:  {}", chunk_configuration_str);
     for stream in server.incoming() {
         println!("incoming");
         let chunk_lock_clone = Arc::clone(&chunk_lock);

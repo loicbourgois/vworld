@@ -141,6 +141,7 @@ fn update_diameter(
     let simulation_time_s = chunk.step as f64 * chunk.constants.delta_time;
     let diameter_muscle_change_rate = chunk.constants.diameter_muscle_change_rate;
     let muscles_use_output = chunk.constants.muscles_use_output;
+    let max_frequency: f64 = 10.0;//chunk.constants.max_frequency;
     for puuid in puuids {
         let spu = single_particle_updates.get_mut(puuid).unwrap();
         let particle = chunk.particles.get(puuid).unwrap();
@@ -149,7 +150,7 @@ fn update_diameter(
                 spu.diameter = if muscles_use_output {
                     particle.base_diameter * (1.0 - particle.output * 0.5)
                 } else {
-                    let sin_0_1 = (simulation_time_s * particle.frequency * 10.0 + particle.phase * 10.0).sin() * 0.5 + 0.5;
+                    let sin_0_1 = (simulation_time_s * particle.frequency * max_frequency + particle.phase * 2.0 * std::f64::consts::PI).sin() * 0.5 + 0.5;
                     particle.base_diameter * (1.0 - sin_0_1 * particle.max_contraction)
                 }
             },

@@ -34,10 +34,19 @@ pub struct Entity {
     pub next_gene_id: usize,
     // Pairs have a direction
     // A->B != B->A
-    pub pairs: HashMap<puuid, HashSet<puuid>>,
-    pub pairs_taken: HashMap<puuid, HashSet<puuid>>, // TODO -> trinome
+    pub pairs: HashMap<puuid, HashMap<puuid, PairInfo>>,
+    // TODO: tranform pairs_taken into trinome:
+    //  this means we need to add a third puuid
+    //  probably HashMap<puuid, HashMap<puuid, puuid>>,
+    pub pairs_taken: HashMap<puuid, HashSet<puuid>>,
     pub tick_start: u32,
     pub type_: EntityType,
+}
+#[derive(Serialize, Deserialize, Copy, Clone)]
+pub struct PairInfo {
+    pub puuid_a: puuid,
+    pub puuid_b: puuid,
+    pub duplication_coefficient: f64,
 }
 pub fn get_next_gene(entity: &mut Entity, rng: &mut rand::prelude::ThreadRng) -> f64 {
     let next_gene_id = entity.next_gene_id;
@@ -134,24 +143,8 @@ pub fn add_new_plant(mut chunk: &mut Chunk, coord_option: Option<Point>, dna_opt
     });
     add_plant_particle(&mut chunk, &euuid, &mut rng);
 }
-pub fn add_new_bloop(mut chunk: &mut Chunk) {
+pub fn add_new_bloop_from_dna_at(mut chunk: &mut Chunk, mut dna: Vec<f64>, x:f64, y:f64) -> euuid {
     let mut rng = rand::thread_rng();
-    let mut dnas = Vec::new();
-    for entity in chunk.entities.values() {
-        match entity.type_ {
-            EntityType::Bloop => dnas.push(entity.dna.to_vec()),
-            _ => {}
-        }
-    }
-    // Assign dna
-    let mut dna = if chunk.constants.use_distance_traveled_as_fitness_function {
-        chunk.best_dna_alive_by_distance_traveled.dna.to_vec()
-    } else if dnas.len() > 0 {
-        let i = (rng.gen::<f64>() * dnas.len() as f64 ) as usize;
-        dnas[i].to_vec()
-    } else {
-        Vec::new()
-    };
     // Mutate dna
     if rng.gen::<f64>() < chunk.constants.bloop.new_dna_rate {
         for gen in dna.iter_mut() {
@@ -168,9 +161,6 @@ pub fn add_new_bloop(mut chunk: &mut Chunk) {
             }
         }
     }
-    let border = 0.0;
-    let x = rng.gen::<f64>() * (1.0 - 2.0 * border) + border;
-    let y = rng.gen::<f64>() * (1.0 - 2.0 * border) + border;
     let euuid: euuid = bob::new_v4().as_u128();
     let constants = chunk.constants;
     chunk.entities.insert(euuid, Entity {
@@ -189,35 +179,74 @@ pub fn add_new_bloop(mut chunk: &mut Chunk) {
     });
     let puuid_a = add_first_particle(&mut chunk, &euuid, &mut rng);
     add_second_particle(&mut chunk, &euuid, &mut rng, puuid_a);
-    let a = (constants.max_body_parts_count - constants.min_body_parts_count) as f64;
-    let max = (a * get_next_gene(chunk.entities.get_mut(&euuid).unwrap(), &mut rng) ) as u32 + constants.min_body_parts_count;
-    for _ in 2..max {
+    for _ in 2..constants.min_body_parts_count {
         let entity = chunk.entities.get(&euuid).unwrap();
         let free_pairs = get_free_pairs(entity);
-        let mut best_sum_duplication_coefficient = 0.0;
+        let mut best_duplication_coefficient = 0.0;
         let mut best_pair_id = free_pairs.len();
         for (pair_id, puuid_pair) in free_pairs.iter().enumerate() {
-            let sum_duplication_coefficient = chunk.particles.get(&puuid_pair[0]).unwrap().duplication_coefficient
-                + chunk.particles.get(&puuid_pair[1]).unwrap().duplication_coefficient;
-            if sum_duplication_coefficient >= best_sum_duplication_coefficient {
+            if puuid_pair.duplication_coefficient >= best_duplication_coefficient {
                 best_pair_id = pair_id;
-                best_sum_duplication_coefficient = sum_duplication_coefficient;
+                best_duplication_coefficient = puuid_pair.duplication_coefficient;
             }
         }
-        add_particle(&mut chunk, &euuid, free_pairs[best_pair_id], &mut rng);
+        let best_pair = free_pairs[best_pair_id];
+        add_particle(&mut chunk, &euuid, [best_pair.puuid_a, best_pair.puuid_b], &mut rng);
     }
+    for _ in constants.min_body_parts_count..constants.max_body_parts_count {
+        let entity = chunk.entities.get(&euuid).unwrap();
+        let free_pairs = get_free_pairs(entity);
+        let mut best_duplication_coefficient = 0.0;
+        let mut best_pair_id = free_pairs.len();
+        for (pair_id, puuid_pair) in free_pairs.iter().enumerate() {
+            if puuid_pair.duplication_coefficient >= best_duplication_coefficient {
+                best_pair_id = pair_id;
+                best_duplication_coefficient = puuid_pair.duplication_coefficient;
+            }
+        }
+        if best_duplication_coefficient >= constants.min_duplication_coefficient {
+            let best_pair = free_pairs[best_pair_id];
+            add_particle(&mut chunk, &euuid, [best_pair.puuid_a, best_pair.puuid_b], &mut rng);
+        } else {
+            break;
+        }
+    }
+    return euuid;
 }
-fn get_free_pairs(entity: &Entity) -> Vec<[puuid; 2]> {
-    let mut v = Vec::new();
-    for (puuid_a, hashet) in entity.pairs.iter() {
-        for puuid_b in hashet {
+pub fn add_new_bloop(chunk: &mut Chunk) {
+    let mut rng = rand::thread_rng();
+    let mut dnas = Vec::new();
+    for entity in chunk.entities.values() {
+        match entity.type_ {
+            EntityType::Bloop => dnas.push(entity.dna.to_vec()),
+            _ => {}
+        }
+    }
+    // Assign dna
+    let dna = if chunk.constants.use_distance_traveled_as_fitness_function && chunk.best_dna_alive_by_distance_traveled.dna.len() > 0 {
+        chunk.best_dna_alive_by_distance_traveled.dna.to_vec()
+    } else if dnas.len() > 0 {
+        let i = (rng.gen::<f64>() * dnas.len() as f64 ) as usize;
+        dnas[i].to_vec()
+    } else {
+        Vec::new()
+    };
+    let border = 0.0;
+    let x = rng.gen::<f64>() * (1.0 - 2.0 * border) + border;
+    let y = rng.gen::<f64>() * (1.0 - 2.0 * border) + border;
+    add_new_bloop_from_dna_at(chunk, dna, x, y);
+}
+fn get_free_pairs(entity: &Entity) -> Vec<PairInfo> {
+    let mut v: Vec<PairInfo> = Vec::new();
+    for (puuid_a, hashmap) in entity.pairs.iter() {
+        for (puuid_b, pair_info) in hashmap {
             match entity.pairs_taken.get(puuid_a) {
                 Some(hashset_taken) => {
                     match hashset_taken.get(puuid_b) {
                         Some(_) => (),
-                        None => v.push([*puuid_a, *puuid_b])
+                        None => v.push(*pair_info)
                     }
-                }, None => v.push([*puuid_a, *puuid_b])
+                }, None => v.push(*pair_info)
             }
         }
     }
