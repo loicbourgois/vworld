@@ -11,7 +11,7 @@
   "constants": {
     "use_distance_traveled_as_fitness_function": false,
     "display_simulation_logs": false,
-    "muscles_use_output": false,
+    "muscles_use_output": true,
     "collision_push_rate": 0.2,
     "drag_coefficient": 10.0,
     "link_length_coefficient": 1.01,

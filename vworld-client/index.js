@@ -16,7 +16,8 @@ const conf = {
       'black': '#111'
     },
     'mouth': {
-      'black': '#800'
+      'red': '#800',
+      'black': '#000'
     },
     'line_of_sight': '#aaa'
   },
@@ -28,7 +29,8 @@ const conf = {
     `It's not a bug, it's a maladaptation to the current universe`,
     `One too many is too many`,
     `Value is at the edge`,
-  ]
+  ],
+  'health_diameter_ratio': 0.5,
 }
 {
   const queryString = window.location.search;
