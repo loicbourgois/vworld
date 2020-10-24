@@ -24,8 +24,6 @@ const render = () => {
   const simulation_speed = simulation_time_s / real_time_s
   context_1.clearRect(0, 0, canvas_1.width, canvas_1.height)
   context_2.clearRect(0, 0, canvas_2.width, canvas_2.height)
-
-
   for (let particle_id in chunk.particles) {
     const particle = chunk.particles[particle_id]
     if (particle.type_ == "Plant") {
@@ -36,19 +34,14 @@ const render = () => {
       draw_body(canvas_2, particle.x, particle.y, particle.diameter, 1.0, 0.5, 0.5)
     }
   }
-
   for (let particle_id in chunk.particles) {
     const particle = chunk.particles[particle_id]
     if (particle.type_ == "Eye") {
-      //draw_body(canvas_1, particle.x, particle.y, particle.diameter, zoom, center_x, center_y)
-      //draw_body(canvas_2, particle.x, particle.y, particle.diameter, 1.0, 0.5, 0.5)
       const x = particle.x + particle.direction.x * particle.diameter * 0.3;
       const y = particle.y + particle.direction.y * particle.diameter * 0.3;
       draw_eye(canvas_1, x, y, particle.diameter, zoom, center_x, center_y)
-      //draw_body_up(canvas_1, particle.x, particle.y, particle.diameter*0.65, zoom, center_x, center_y)
+      draw_body_up(canvas_1, particle.x, particle.y, particle.diameter*0.65, zoom, center_x, center_y)
     } else if (particle.type_ == "Mouth") {
-      //draw_body(canvas_1, particle.x, particle.y, particle.diameter, zoom, center_x, center_y)
-      //draw_body(canvas_2, particle.x, particle.y, particle.diameter, 1.0, 0.5, 0.5)
       let x = particle.x + particle.direction.x * particle.diameter * 0.35;
       let y = particle.y + particle.direction.y * particle.diameter * 0.35;
       if (Math.abs(particle.direction.x) < 0.1 && Math.abs(particle.direction.y)  < 0.1) {
@@ -56,10 +49,7 @@ const render = () => {
         y = particle.y - 1.0 * particle.diameter * 0.35;
       }
       draw_mouth(canvas_1, x, y, particle.diameter, zoom, center_x, center_y)
-      //draw_body_up(canvas_1, particle.x, particle.y, particle.diameter*0.65, zoom, center_x, center_y)
-    } else {
-      //draw_body(canvas_1, particle.x, particle.y, particle.diameter, zoom, center_x, center_y)
-      //draw_body(canvas_2, particle.x, particle.y, particle.diameter, 1.0, 0.5, 0.5)
+      draw_body_up(canvas_1, particle.x, particle.y, particle.diameter*0.65, zoom, center_x, center_y)
     }
   }
   if (document.getElementById('show_outputs').checked) {
@@ -103,6 +93,11 @@ const render = () => {
   render_stats_distance();
   return;
 
+
+
+
+  //
+  // Old
   //
 
 
