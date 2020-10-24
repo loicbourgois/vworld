@@ -77,6 +77,7 @@ struct ParticleClientData {
     type_: ParticleType,
     direction: Vector,
     energy: f64,
+    output: f64,
 }
 #[derive(Serialize, Deserialize)]
 struct Data {
@@ -205,6 +206,7 @@ fn main() {
                             type_: p.type_,
                             direction: direction,
                             energy: p.energy,
+                            output: p.output
                         });
                     }
                     data

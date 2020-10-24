@@ -29,16 +29,19 @@ const render = () => {
     if (particle.type_ == "Plant") {
       draw_plant(canvas_1, particle.x, particle.y, particle.diameter, zoom, center_x, center_y, particle.color)
       draw_plant(canvas_2, particle.x, particle.y, particle.diameter, 1.0, 0.5, 0.5, particle.color)
-    } else if (particle.type_ == "Eye") {
+    } else {
       draw_body(canvas_1, particle.x, particle.y, particle.diameter, zoom, center_x, center_y)
       draw_body(canvas_2, particle.x, particle.y, particle.diameter, 1.0, 0.5, 0.5)
+    }
+  }
+  for (let particle_id in chunk.particles) {
+    const particle = chunk.particles[particle_id]
+    if (particle.type_ == "Eye") {
       const x = particle.x + particle.direction.x * particle.diameter * 0.3;
       const y = particle.y + particle.direction.y * particle.diameter * 0.3;
       draw_eye(canvas_1, x, y, particle.diameter, zoom, center_x, center_y)
       draw_body_up(canvas_1, particle.x, particle.y, particle.diameter*0.65, zoom, center_x, center_y)
     } else if (particle.type_ == "Mouth") {
-      draw_body(canvas_1, particle.x, particle.y, particle.diameter, zoom, center_x, center_y)
-      draw_body(canvas_2, particle.x, particle.y, particle.diameter, 1.0, 0.5, 0.5)
       let x = particle.x + particle.direction.x * particle.diameter * 0.35;
       let y = particle.y + particle.direction.y * particle.diameter * 0.35;
       if (Math.abs(particle.direction.x) < 0.1 && Math.abs(particle.direction.y)  < 0.1) {
@@ -47,9 +50,16 @@ const render = () => {
       }
       draw_mouth(canvas_1, x, y, particle.diameter, zoom, center_x, center_y)
       draw_body_up(canvas_1, particle.x, particle.y, particle.diameter*0.65, zoom, center_x, center_y)
-    } else {
-      draw_body(canvas_1, particle.x, particle.y, particle.diameter, zoom, center_x, center_y)
-      draw_body(canvas_2, particle.x, particle.y, particle.diameter, 1.0, 0.5, 0.5)
+    }
+  }
+  if (document.getElementById('show_outputs').checked) {
+    for (let particle_id in chunk.particles) {
+      const particle = chunk.particles[particle_id]
+      if (particle.type_ == "Plant") {
+        // Do nothing
+      } else {
+        draw_output(canvas_1, particle.x, particle.y, particle.diameter, zoom, center_x, center_y, particle.output)
+      }
     }
   }
   if (document.getElementById('show_health').checked) {
@@ -58,7 +68,7 @@ const render = () => {
       if (particle.type_ == "Plant") {
         // Do nothing
       } else {
-        draw_energy(canvas_1, particle.x, particle.y, particle.diameter, zoom, center_x, center_y, particle.energy * 0.8)
+        draw_energy(canvas_1, particle.x, particle.y, particle.diameter, zoom, center_x, center_y, particle.energy * conf.health_diameter_ratio)
       }
     }
   }
@@ -83,7 +93,15 @@ const render = () => {
   render_stats_distance();
   return;
 
+
+
+
   //
+  // Old
+  //
+
+
+
 
 
   document.getElementById('particles_count').innerHTML = chunk.particles_count;
@@ -312,7 +330,8 @@ const draw_eye = (canvas, x, y, diameter, zoom, center_x, center_y) => {
   draw_disk(canvas, x, y, diameter * 0.45, zoom, center_x, center_y, conf.colors.eye.black)
 }
 const draw_mouth = (canvas, x, y, diameter, zoom, center_x, center_y) => {
-  draw_disk(canvas, x, y, diameter * 0.6, zoom, center_x, center_y, conf.colors.mouth.black)
+  //draw_disk(canvas, x, y, diameter * 0.5, zoom, center_x, center_y, conf.colors.mouth.black)
+  draw_disk(canvas, x, y, diameter * 0.55, zoom, center_x, center_y, conf.colors.mouth.red)
 }
 const draw_body = (canvas, x, y, diameter, zoom, center_x, center_y) => {
   draw_disk(canvas, x, y, diameter, zoom, center_x, center_y, conf.colors.body)
@@ -330,11 +349,11 @@ const draw_energy = (canvas, x, y, diameter, zoom, center_x, center_y, energy) =
   draw_disk(canvas, x, y, diameter, zoom, center_x, center_y, conf.colors.health)
 }
 const draw_output = (canvas, x, y, diameter, zoom, center_x, center_y, output) => {
-  const r = 255.0;
-  const g = (1.0 - output) * 255.0;
-  const b = (1.0 - output) * 255.0;
+  const r = 255.0 * output;
+  const g = 255.0 * output;
+  const b = 0.0;//(1.0 - output) * 255.0;
   // const a = 0.5;
-  const color = `rgb(${r}, ${g}, ${b})`
+  const color = `rgba(${r}, ${g}, ${b})`
   draw_disk(canvas, x, y, diameter*0.8, zoom, center_x, center_y, color)
 }
 const get_canvas_coord = (canvas, x, y, zoom, center_x, center_y) => {
