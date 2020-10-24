@@ -622,7 +622,7 @@ fn main() {
     println!("server started");
     println!("  host:           {}", host);
     println!("  engine threads: {}", thread_count);
-    println!("  configuration:  {}", chunk_configuration_str);
+    // println!("  configuration:  {}", chunk_configuration_str);
     for stream in server.incoming() {
         println!("incoming");
         let chunk_lock_clone = Arc::clone(&chunk_lock);

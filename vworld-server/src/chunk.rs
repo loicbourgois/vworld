@@ -10,7 +10,6 @@ use crate::Entity;
 use crate::Particle;
 use std::collections::HashMap;
 use crate::add_new_plant;
-//use crate::add_new_bloop;
 use serde_json as json;
 use std::collections::HashSet;
 use crate::ParticleType;
@@ -131,12 +130,13 @@ pub fn create_chunk_from_configuration_str(configuration_str: &str) -> Chunk {
         },
         json: "".to_string(),
     };
-    for human_entity_config in &configuration.human_entities {
+    for (i, human_entity_config) in configuration.human_entities.iter().enumerate() {
+        println!("loading entity #{}", i);
         let dna = get_dna_from_human_entity_conf(&configuration.constants, human_entity_config);
-        println!("pre-computed dna len: {}", dna.len());
-        println!("{:?}", dna);
+        println!("  pre-computed dna len: {}", dna.len());
+        //println!("{:?}", dna);
         let eeuid = add_new_bloop_from_dna_at(&mut chunk, dna, human_entity_config.x, human_entity_config.y);
-        println!("real dna len:         {}", chunk.entities.get(&eeuid).unwrap().dna.len() );
+        println!("  real dna len:         {}", chunk.entities.get(&eeuid).unwrap().dna.len() );
     }
     for _ in 0..configuration.constants.plant.min_count {
         add_new_plant(&mut chunk, None, None);
@@ -145,13 +145,7 @@ pub fn create_chunk_from_configuration_str(configuration_str: &str) -> Chunk {
 }
 fn get_dna_from_human_entity_conf(constants: &Constants, human_entity_config: &EntityConfiguration) -> Vec<f64> {
     let mut dna = Vec::new();
-    //let p_count = 50;
-    //let p_count_f = p_count as f64;
-    //let min_particle_count = constants.min_body_parts_count as f64;
-    //let max_particle_count = constants.max_body_parts_count as f64;
-    //let entity_p_count = (human_entity_config.particles.len() as f64).min(p_count_f);
-    //let entity_p_count_gene = get_gene(min_particle_count, max_particle_count, entity_p_count);
-    //dna.push(entity_p_count_gene);
+    let debug_entity_conf = false;
     dna.append(&mut get_genes_first_particle_from_conf(&human_entity_config.particles[0]).to_vec());
     dna.append(&mut get_genes_second_particle_from_conf(&human_entity_config.particles[1]).to_vec());
     let particle_to_add_count = human_entity_config.particles.len();
@@ -209,11 +203,13 @@ fn get_dna_from_human_entity_conf(constants: &Constants, human_entity_config: &E
             + close_count * link_close_gene_count
         };
         dna[dna_id] = duplication_coefficient;
-        println!("id_c: {}", id_c);
-        println!("  dna_id: {}", dna_id);
-        println!("  close_count: {}", close_count);
-        println!("  source_p_id: {}", source_p_id);
-        println!("  duplication_coefficient: {}", duplication_coefficient);
+        if debug_entity_conf {
+            println!("id_c: {}", id_c);
+            println!("  dna_id: {}", dna_id);
+            println!("  close_count: {}", close_count);
+            println!("  source_p_id: {}", source_p_id);
+            println!("  duplication_coefficient: {}", duplication_coefficient);
+        }
         duplication_coefficient -= duplication_coefficient_minus;
     }
     let theorical_dna_size = entity_genes_count
@@ -221,6 +217,6 @@ fn get_dna_from_human_entity_conf(constants: &Constants, human_entity_config: &E
         + second_particle_genes_count
         + (particle_to_add_count-2) * other_particle_genes_count
         + human_entity_config.particle_closers.len() * link_close_gene_count;
-    println!("theorical dna len: {}", theorical_dna_size);
+    println!("  theorical dna len:    {}", theorical_dna_size);
     return dna;
 }

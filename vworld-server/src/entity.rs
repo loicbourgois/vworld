@@ -177,12 +177,9 @@ pub fn add_new_bloop_from_dna_at(mut chunk: &mut Chunk, mut dna: Vec<f64>, x:f64
         tick_start: chunk.step,
         type_: EntityType::Bloop
     });
-    //let a = (constants.max_body_parts_count - constants.min_body_parts_count) as f64;
-    //let max = (a * get_next_gene(chunk.entities.get_mut(&euuid).unwrap(), &mut rng) ) as u32 + constants.min_body_parts_count;
     let puuid_a = add_first_particle(&mut chunk, &euuid, &mut rng);
     add_second_particle(&mut chunk, &euuid, &mut rng, puuid_a);
     for _ in 2..constants.min_body_parts_count {
-    //for _ in 2..max {
         let entity = chunk.entities.get(&euuid).unwrap();
         let free_pairs = get_free_pairs(entity);
         let mut best_duplication_coefficient = 0.0;
@@ -225,7 +222,6 @@ pub fn add_new_bloop(chunk: &mut Chunk) {
             _ => {}
         }
     }
-    // println!("{}", dnas.len());
     // Assign dna
     let dna = if chunk.constants.use_distance_traveled_as_fitness_function && chunk.best_dna_alive_by_distance_traveled.dna.len() > 0 {
         chunk.best_dna_alive_by_distance_traveled.dna.to_vec()
@@ -235,8 +231,6 @@ pub fn add_new_bloop(chunk: &mut Chunk) {
     } else {
         Vec::new()
     };
-    //println!("dna: {:?}", dna);
-    //println!("dna: {:?}", dna.len());
     let border = 0.0;
     let x = rng.gen::<f64>() * (1.0 - 2.0 * border) + border;
     let y = rng.gen::<f64>() * (1.0 - 2.0 * border) + border;
