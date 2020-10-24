@@ -10,6 +10,12 @@ export vworld_root_folder=$(pwd)/vworld
 $vworld_root_folder/scripts/demo.sh
 ```
 
+## Other demos
+
+```bash
+$vworld_root_folder/scripts/fish.sh
+```
+
 ## Deploy on [Scaleway Instances](https://www.scaleway.com/en/virtual-instances/)
 
 ```bash

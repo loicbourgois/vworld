@@ -1,0 +1,215 @@
+{
+  "human_entities": [
+    {
+      "x": 0.5,
+      "y": 0.5,
+      "particles": [
+        {
+          "id": 0,
+          "type_": "Heart"
+        },
+        {
+          "id": 1,
+          "type_": "Muscle",
+          "frequency": 0.5,
+          "phase": 0.5
+        },
+        {
+          "id": 2,
+          "type_": "Eye"
+        },
+        {
+          "id": 3,
+          "type_": "Muscle",
+          "frequency": 0.5,
+          "phase": 0
+        },
+        {
+          "id": 4,
+          "type_": "Mouth"
+        },
+        {
+          "id": 5,
+          "type_": "Mouth"
+        },
+        {
+          "id": 6,
+          "type_": "Muscle",
+          "frequency": 0.5,
+          "phase": 0
+        },
+        {
+          "id": 7,
+          "type_": "Muscle",
+          "frequency": 0.5,
+          "phase": 0.5
+        },
+        {
+          "id": 8,
+          "type_": "Muscle"
+        },
+        {
+          "id": 9,
+          "type_": "Muscle",
+          "frequency": 0.5,
+          "phase": 0.5
+        },
+        {
+          "id": 10,
+          "type_": "Muscle",
+          "frequency": 0.5,
+          "phase": 0
+        },
+        {
+          "id": 11,
+          "type_": "Muscle",
+          "phase": 0.5
+        },
+        {
+          "id": 12,
+          "type_": "Muscle"
+        },
+        {
+          "id": 13,
+          "type_": "Muscle",
+          "phase": 0
+        },
+        {
+          "id": 14,
+          "type_": "Muscle",
+          "phase": 0.5
+        },
+        {
+          "id": 15,
+          "type_": "Muscle",
+          "phase": 0.5
+        }
+      ],
+      "trinomes": [
+        [
+          0,
+          1,
+          2
+        ],
+        [
+          0,
+          2,
+          3
+        ],
+        [
+          2,
+          1,
+          4
+        ],
+        [
+          3,
+          2,
+          5
+        ],
+        [
+          1,
+          0,
+          6
+        ],
+        [
+          1,
+          6,
+          7
+        ],
+        [
+          7,
+          6,
+          8
+        ],
+        [
+          0,
+          3,
+          9
+        ],
+        [
+          9,
+          3,
+          10
+        ],
+        [
+          9,
+          10,
+          11
+        ],
+        [
+          8,
+          6,
+          12
+        ],
+        [
+          9,
+          11,
+          13
+        ],
+        [
+          8,
+          12,
+          14
+        ],
+        [
+          13,
+          11,
+          15
+        ]
+      ],
+      "particle_closers": []
+    }
+  ],
+  "particles": [],
+  "x": 0,
+  "y": 0,
+  "constants": {
+    "min_duplication_coefficient": 0.55,
+    "use_distance_traveled_as_fitness_function": false,
+    "display_simulation_logs": false,
+    "muscles_use_output": false,
+    "collision_push_rate": 0.2,
+    "drag_coefficient": 10,
+    "link_length_coefficient": 1.01,
+    "link_strengh_default": 100.5,
+    "diameter_muscle_change_rate": 0.1,
+    "delta_time": 0.01,
+    "default_mass": 0.1,
+    "default_diameter": 0.01,
+    "min_body_parts_count": 10,
+    "max_body_parts_count": 30,
+    "max_stats_count": 1000,
+    "plant": {
+      "mutation_rate": 1,
+      "max_mutation_strength": 0.05,
+      "new_dna_rate": 0,
+      "min_count": 1000,
+      "energy_drop_rate_per_tick": 0,
+      "energy_drop_rate_per_tick_circle": 0
+    },
+    "bloop": {
+      "gene_random_mutation_rate": 0.001,
+      "gene_progressive_mutation_rate": 1,
+      "gene_progressive_mutation_strength": 0.0001,
+      "new_dna_rate": 0.01,
+      "min_count": 100,
+      "energy_drop_rate_per_tick": 0.0005,
+      "starting_energy": 1,
+      "max_contraction": 0.5
+    },
+    "gravity": {
+      "x": 0,
+      "y": 0
+    },
+    "energy_max": 1,
+    "energy_min": 0,
+    "eye_sight_length": 0.02,
+    "mouth_energy_eating_rate_per_second": 1,
+    "mouth_energy_consumption_rate_per_second": 0.00001,
+    "enable_auto_link_6": true,
+    "destroy_unstable_entities": true
+  },
+  "thread_count": {
+    "value": 1
+  }
+}
