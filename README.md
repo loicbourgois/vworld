@@ -14,6 +14,7 @@ $vworld_root_folder/scripts/demo.sh
 
 ```bash
 $vworld_root_folder/scripts/fish.sh
+$vworld_root_folder/scripts/snake.sh
 ```
 
 ## Deploy on [Scaleway Instances](https://www.scaleway.com/en/virtual-instances/)

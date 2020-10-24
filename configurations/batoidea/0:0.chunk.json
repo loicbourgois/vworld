@@ -1,0 +1,187 @@
+{
+  "human_entities": [
+    {
+      "x": 0.5,
+      "y": 0.5,
+      "particles": [
+        {
+          "id": 0,
+          "type_": "Heart"
+        },
+        {
+          "id": 1,
+          "type_": "Eye"
+        },
+        {
+          "id": 2,
+          "type_": "Muscle",
+          "phase": 0
+        },
+        {
+          "id": 3,
+          "type_": "Mouth"
+        },
+        {
+          "id": 4,
+          "type_": "Muscle",
+          "phase": 0.5
+        },
+        {
+          "id": 5,
+          "type_": "Muscle",
+          "phase": 0
+        },
+        {
+          "id": 6,
+          "type_": "Muscle",
+          "phase": 0.5
+        },
+        {
+          "id": 7,
+          "type_": "Default"
+        },
+        {
+          "id": 8,
+          "type_": "Muscle",
+          "phase": 0
+        },
+        {
+          "id": 9,
+          "type_": "Mouth"
+        },
+        {
+          "id": 10,
+          "type_": "Muscle",
+          "phase": 0.5
+        },
+        {
+          "id": 11,
+          "type_": "Muscle",
+          "phase": 0
+        },
+        {
+          "id": 12,
+          "type_": "Muscle",
+          "phase": 0.5
+        },
+        {
+          "id": 13,
+          "type_": "Default"
+        }
+      ],
+      "trinomes": [
+        [
+          1,
+          0,
+          2
+        ],
+        [
+          1,
+          2,
+          3
+        ],
+        [
+          3,
+          2,
+          4
+        ],
+        [
+          4,
+          2,
+          5
+        ],
+        [
+          4,
+          5,
+          6
+        ],
+        [
+          6,
+          5,
+          7
+        ],
+        [
+          0,
+          1,
+          8
+        ],
+        [
+          8,
+          1,
+          9
+        ],
+        [
+          8,
+          9,
+          10
+        ],
+        [
+          8,
+          10,
+          11
+        ],
+        [
+          11,
+          10,
+          12
+        ],
+        [
+          11,
+          12,
+          13
+        ]
+      ],
+      "particle_closers": []
+    }
+  ],
+  "particles": [],
+  "x": 0,
+  "y": 0,
+  "constants": {
+    "min_duplication_coefficient": 0.55,
+    "use_distance_traveled_as_fitness_function": true,
+    "display_simulation_logs": false,
+    "muscles_use_output": false,
+    "collision_push_rate": 0.2,
+    "drag_coefficient": 10,
+    "link_length_coefficient": 1.01,
+    "link_strengh_default": 100.5,
+    "diameter_muscle_change_rate": 0.1,
+    "delta_time": 0.002,
+    "default_mass": 0.1,
+    "default_diameter": 0.01,
+    "min_body_parts_count": 10,
+    "max_body_parts_count": 30,
+    "max_stats_count": 1000,
+    "plant": {
+      "mutation_rate": 1,
+      "max_mutation_strength": 0.05,
+      "new_dna_rate": 0,
+      "min_count": 0,
+      "energy_drop_rate_per_tick": 0,
+      "energy_drop_rate_per_tick_circle": 0
+    },
+    "bloop": {
+      "gene_random_mutation_rate": 0,
+      "gene_progressive_mutation_rate": 1,
+      "gene_progressive_mutation_strength": 0,
+      "new_dna_rate": 0,
+      "min_count": 20,
+      "energy_drop_rate_per_tick": 0,
+      "starting_energy": 1,
+      "max_contraction": 0.5
+    },
+    "gravity": {
+      "x": 0,
+      "y": 0
+    },
+    "energy_max": 1,
+    "energy_min": 0,
+    "eye_sight_length": 0.02,
+    "mouth_energy_eating_rate_per_second": 1,
+    "mouth_energy_consumption_rate_per_second": 0,
+    "enable_auto_link_6": true,
+    "destroy_unstable_entities": true
+  },
+  "thread_count": "auto"
+}
