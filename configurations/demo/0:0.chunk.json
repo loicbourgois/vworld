@@ -1,12 +1,6 @@
 {
-  "entities": [],
-  "particles": [
-    {
-      "type_": "sun",
-      "x": 0.5,
-      "y": 0.5
-    }
-  ],
+  "human_entities": [],
+  "particles": [],
   "x": 0,
   "y": 0,
   "constants": {
@@ -38,8 +32,8 @@
       "gene_progressive_mutation_strength": 0.05,
       "new_dna_rate": 0.1,
       "min_count": 100,
-      "energy_drop_rate_per_tick": 0.0001,
-      "starting_energy": 0.2,
+      "energy_drop_rate_per_tick": 0.0002,
+      "starting_energy": 1,
       "max_contraction": 0.5
     },
     "gravity": {
@@ -52,7 +46,8 @@
     "mouth_energy_eating_rate_per_second": 1,
     "mouth_energy_consumption_rate_per_second": 0.01,
     "enable_auto_link_6": true,
-    "destroy_unstable_entities": true
+    "destroy_unstable_entities": true,
+    "min_duplication_coefficient": 0.5
   },
   "thread_count": "auto"
 }
