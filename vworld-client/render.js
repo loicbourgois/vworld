@@ -39,16 +39,22 @@ const render = () => {
     if (particle.type_ == "Eye") {
       const x = particle.x + particle.direction.x * particle.diameter * 0.3;
       const y = particle.y + particle.direction.y * particle.diameter * 0.3;
-      draw_eye(canvas_1, x, y, particle.diameter, zoom, center_x, center_y)
+      draw_eye(canvas_1, x, y, particle.diameter, zoom, center_x, center_y, particle.output)
       draw_body_up(canvas_1, particle.x, particle.y, particle.diameter*0.65, zoom, center_x, center_y)
     } else if (particle.type_ == "Mouth") {
       let x = particle.x + particle.direction.x * particle.diameter * 0.35;
       let y = particle.y + particle.direction.y * particle.diameter * 0.35;
-      if (Math.abs(particle.direction.x) < 0.1 && Math.abs(particle.direction.y)  < 0.1) {
+      /*if (Math.abs(particle.direction.x) < 0.1 && Math.abs(particle.direction.y)  < 0.1) {
         x = particle.x + 0.0 * particle.diameter * 0.35;
         y = particle.y - 1.0 * particle.diameter * 0.35;
-      }
-      draw_mouth(canvas_1, x, y, particle.diameter, zoom, center_x, center_y)
+      }*/
+      draw_mouth(canvas_1, x, y, particle.diameter, zoom, center_x, center_y, particle.output)
+      draw_body_up(canvas_1, particle.x, particle.y, particle.diameter*0.65, zoom, center_x, center_y)
+    } else if (particle.type_ == "Turbo") {
+      log_x_time(2, particle);
+      const x = particle.x + particle.direction.x * particle.diameter * 0.3;
+      const y = particle.y + particle.direction.y * particle.diameter * 0.3;
+      draw_turbo(canvas_1, x, y, particle.diameter, zoom, center_x, center_y, particle.output)
       draw_body_up(canvas_1, particle.x, particle.y, particle.diameter*0.65, zoom, center_x, center_y)
     }
   }
@@ -325,13 +331,33 @@ const draw_disk = (canvas, x, y, diameter, zoom, center_x, center_y, color) => {
   context.fillStyle = color;
   context.fill();
 }
-const draw_eye = (canvas, x, y, diameter, zoom, center_x, center_y) => {
-  draw_disk(canvas, x, y, diameter * 0.6, zoom, center_x, center_y, conf.colors.eye.white)
+const draw_eye = (canvas, x, y, diameter, zoom, center_x, center_y, particle_output) => {
+  let g = 255.0;
+  let r = 255.0 - 255.0 *  particle_output * 0.75;
+  let b = 255.0 - 255.0 * particle_output * 0.5;
+  draw_disk(canvas, x, y, diameter * 0.65, zoom, center_x, center_y, `rgb(${r}, ${g}, ${b})`)
   draw_disk(canvas, x, y, diameter * 0.45, zoom, center_x, center_y, conf.colors.eye.black)
 }
-const draw_mouth = (canvas, x, y, diameter, zoom, center_x, center_y) => {
-  //draw_disk(canvas, x, y, diameter * 0.5, zoom, center_x, center_y, conf.colors.mouth.black)
-  draw_disk(canvas, x, y, diameter * 0.55, zoom, center_x, center_y, conf.colors.mouth.red)
+const draw_turbo = (canvas, x, y, diameter, zoom, center_x, center_y, particle_output) => {
+  let r = conf.colors.turbo.back.r * particle_output;
+  let g = conf.colors.turbo.back.g * particle_output;
+  let b = conf.colors.turbo.back.b * particle_output;
+  draw_disk(canvas, x, y, diameter * 0.7, zoom, center_x, center_y, `rgb(${r}, ${g}, ${b})`)
+  r = conf.colors.turbo.top.r * particle_output;
+  g = conf.colors.turbo.top.g * particle_output;
+  b = conf.colors.turbo.top.b * particle_output;
+  draw_disk(canvas, x, y, diameter * 0.55, zoom, center_x, center_y, `rgb(${r}, ${g}, ${b})`)
+}
+const draw_mouth = (canvas, x, y, diameter, zoom, center_x, center_y, particle_output) => {
+  let r = conf.colors.mouth.back.r * (particle_output* 0.75 + 0.5);
+  let g = conf.colors.mouth.back.g * (particle_output* 0.75 + 0.5);
+  let b = conf.colors.mouth.back.b * (particle_output* 0.75 + 0.5);
+  draw_disk(canvas, x, y, diameter * 0.7, zoom, center_x, center_y, `rgb(${r}, ${g}, ${b})`)
+  r = conf.colors.mouth.top.r * (particle_output* 0.5 + 0.5);
+  g = conf.colors.mouth.top.g * (particle_output* 0.5 + 0.5);
+  b = conf.colors.mouth.top.b * (particle_output* 0.5 + 0.5);
+  draw_disk(canvas, x, y, diameter * 0.55, zoom, center_x, center_y, `rgb(${r}, ${g}, ${b})`)
+
 }
 const draw_body = (canvas, x, y, diameter, zoom, center_x, center_y) => {
   draw_disk(canvas, x, y, diameter, zoom, center_x, center_y, conf.colors.body)

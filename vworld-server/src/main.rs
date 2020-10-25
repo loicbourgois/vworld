@@ -194,6 +194,9 @@ fn main() {
                             ParticleData::MouthData {direction} => {
                                 direction
                             },
+                            ParticleData::TurboData {direction} => {
+                                direction
+                            },
                             _ => {
                                 Vector {x: 0.0, y: 0.0}
                             },
@@ -287,6 +290,11 @@ fn main() {
                                         },
                                         ParticleData::MouthData {direction} => {
                                             p.data = ParticleData::MouthData{
+                                                direction: *direction,
+                                            }
+                                        },
+                                        ParticleData::TurboData {direction} => {
+                                            p.data = ParticleData::TurboData{
                                                 direction: *direction,
                                             }
                                         },

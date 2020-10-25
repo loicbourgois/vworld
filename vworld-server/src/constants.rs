@@ -27,6 +27,7 @@ pub struct Constants {
     pub display_simulation_logs: bool,
     pub use_distance_traveled_as_fitness_function: bool,
     pub min_duplication_coefficient: f64,
+    pub turbo_max: f64,
     // TODO: allow for configuration of particle max frequency
     //pub max_frequency_: f64,
 }

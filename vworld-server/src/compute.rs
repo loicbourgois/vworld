@@ -85,6 +85,21 @@ fn reset_multiple_particle_updates (
         });
     }
 }
+fn get_direction(chunk: &Chunk, particle_a: &Particle) -> Vector {
+    let mut direction = Vector {
+        x: 0.0,
+        y: 0.0,
+    };
+    for particle_link in particle_a.links.values() {
+        let particle_b = chunk.particles.get(&particle_link.puuid_linked).unwrap();
+        let direction_tmp = Vector::new_2(
+            particle_b.x, particle_b.y,
+            particle_a.x, particle_a.y
+        );
+        direction.add(&direction_tmp.normalized());
+    }
+    return direction.normalized();
+}
 fn update_particle_data(
     puuids: &Vec<puuid>,
     single_particle_updates: &mut HashMap<puuid, SingleParticleUpdate>,
@@ -94,41 +109,21 @@ fn update_particle_data(
         let particle_a = chunk.particles.get(puuid).unwrap();
         match particle_a.type_ {
             ParticleType::Eye => {
-                let mut direction = Vector {
-                    x: 0.0,
-                    y: 0.0,
-                };
-                for particle_link in particle_a.links.values() {
-                    let particle_b = chunk.particles.get(&particle_link.puuid_linked).unwrap();
-                    let direction_tmp = Vector::new_2(
-                        particle_b.x, particle_b.y,
-                        particle_a.x, particle_a.y
-                    );
-                    direction.add(&direction_tmp.normalized());
-                }
                 single_particle_updates.get_mut(puuid).unwrap().particle_data = Some(ParticleData::EyeData{
-                    direction: direction.normalized()
-                    // color:
+                    direction: get_direction(chunk, particle_a)
                 });
             },
             ParticleType::Mouth => {
-                let mut direction = Vector {
-                    x: 0.0,
-                    y: 0.0,
-                };
-                for particle_link in particle_a.links.values() {
-                    let particle_b = chunk.particles.get(&particle_link.puuid_linked).unwrap();
-                    let direction_tmp = Vector::new_2(
-                        particle_b.x, particle_b.y,
-                        particle_a.x, particle_a.y
-                    );
-                    direction.add(&direction_tmp.normalized());
-                }
                 single_particle_updates.get_mut(puuid).unwrap().particle_data = Some(ParticleData::MouthData{
-                    direction: direction.normalized()
-                    // color:
+                    direction: get_direction(chunk, particle_a)
                 });
-            }, _ => ()
+            },
+            ParticleType::Turbo => {
+                single_particle_updates.get_mut(puuid).unwrap().particle_data = Some(ParticleData::TurboData{
+                    direction: get_direction(chunk, particle_a)
+                });
+            },
+            _ => ()
         }
     }
 }
@@ -176,11 +171,23 @@ fn update_outputs (
     single_particle_updates: &mut HashMap<puuid, SingleParticleUpdate>
 ) {
     let simulation_time_s = chunk.step as f64 * chunk.constants.delta_time;
+    // TODO: refactor using constants
+    let max_frequency = 10.0;
     for (puuid, spu) in single_particle_updates.iter_mut() {
         let particle = chunk.particles.get(puuid).unwrap();
         spu.output = match particle.type_ {
             ParticleType::Heart => {
-                (simulation_time_s * particle.frequency * 10.0 + particle.phase * 10.0).sin() * 0.5 + 0.5
+                //(simulation_time_s * particle.frequency * max_frequency + particle.phase * 2.0 * std::f64::consts::PI).sin() * 0.5 + 0.5
+                1.0
+            },
+            ParticleType::Clock => {
+                (simulation_time_s * particle.frequency * max_frequency + particle.phase * 2.0 * std::f64::consts::PI).sin() * 0.5 + 0.5
+            },
+            ParticleType::Constant => {
+                particle.bias_weight
+            },
+            ParticleType::Stomach => {
+                particle.energy
             },
             ParticleType::Eye => {
                 if particle.is_colliding_other_entity {
@@ -188,10 +195,17 @@ fn update_outputs (
                 } else {
                     0.0
                 }
-            }
+            },
+            ParticleType::Mouth => {
+                if particle.is_colliding_other_entity {
+                    1.0
+                } else {
+                    0.0
+                }
+            },
             _ => {
-                let mut output = particle.bias_weight;
-                let mut divisor = particle.bias_weight.abs();
+                let mut output = 0.0;//particle.bias_weight;
+                let mut divisor = 0.0;//particle.bias_weight.abs();
                 for link in particle.links.values() {
                     output += link.weight * chunk.particles.get(&link.puuid_linked).unwrap().output;
                     divisor += link.weight.abs();
@@ -203,6 +217,9 @@ fn update_outputs (
                 output
             }
         };
+        if spu.output > 1.0 || spu.output < -1.0 {
+            println!("bad output: {}", spu.output);
+        }
     }
 }
 fn compute_collisions (
@@ -369,6 +386,24 @@ fn compute_forces(
             y: chunk.constants.gravity.y * particle.mass * delta_time
         };
         force_by_puuid.add(&gravity_force);
+        // Turbo force
+        match particle.type_ {
+            ParticleType::Turbo => {
+                let direction = match particle.data {
+                    ParticleData::TurboData {direction} => {
+                        direction
+                    },
+                    _ => {
+                        Vector {x: 0.0, y: 0.0}
+                    },
+                };
+                let turbo_force = Vector {
+                    x: - delta_time * particle.output * direction.x * chunk.constants.turbo_max,
+                    y: - delta_time * particle.output * direction.y * chunk.constants.turbo_max
+                };
+                force_by_puuid.add(&turbo_force);
+            }, _ => ()
+        }
     }
 }
 fn update_from_forces(
