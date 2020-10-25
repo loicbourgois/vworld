@@ -9,6 +9,7 @@
   },
   "thread_count": "auto",
   "constants": {
+    "turbo_max": 2.0,
     "use_distance_traveled_as_fitness_function": false,
     "display_simulation_logs": false,
     "muscles_use_output": true,
@@ -20,23 +21,23 @@
     "delta_time": 0.01,
     "default_mass": 0.1,
     "default_diameter": 0.01,
-    "min_body_parts_count": 15,
-    "max_body_parts_count": 15,
+    "min_body_parts_count": 5,
+    "max_body_parts_count": 30,
     "max_stats_count": 1000,
     "plant": {
       "mutation_rate": 1.0,
-      "max_mutation_strength": 0.05,
+      "max_mutation_strength": 0.1,
       "new_dna_rate": 0.0,
       "min_count": 1000,
       "energy_drop_rate_per_tick": 0.000,
       "energy_drop_rate_per_tick_circle": 0.0
     },
     "bloop": {
-      "gene_random_mutation_rate": 0.02,
+      "gene_random_mutation_rate": 0.01,
       "gene_progressive_mutation_rate": 1.0,
-      "gene_progressive_mutation_strength": 0.05,
-      "new_dna_rate": 0.1,
-      "min_count": 100,
+      "gene_progressive_mutation_strength": 0.01,
+      "new_dna_rate": 0.01,
+      "min_count": 50,
       "energy_drop_rate_per_tick": 0.0002,
       "starting_energy": 1.0,
       "max_contraction": 0.5

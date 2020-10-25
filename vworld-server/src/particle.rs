@@ -13,6 +13,8 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use crate::chunk::ParticleConfiguration;
 use crate::entity::PairInfo;
+const GENES_PER_PARTICLE_2: usize = 17;
+const GENES_PER_PARTICLE: usize = 21;
 #[derive(Copy, Clone, Serialize, Deserialize)]
 pub struct Color {
     pub r: f64,
@@ -26,6 +28,9 @@ pub enum ParticleData {
         direction: Vector,
     },
     MouthData {
+        direction: Vector,
+    },
+    TurboData {
         direction: Vector,
     },
     PlantData {
@@ -43,7 +48,11 @@ pub enum ParticleType {
     Heart,
     Eye,
     Mouth,
-    Plant
+    Plant,
+    Turbo,
+    Clock,
+    Stomach,
+    Constant
 }
 // Represents a link to another particle, from the current particle
 #[derive(Serialize, Deserialize)]
@@ -82,23 +91,20 @@ pub fn get_genes_first_particle(entity: &mut Entity, mut rng: &mut rand::prelude
     }
     return genes;
 }
-pub fn get_genes_second_particle(entity: &mut Entity, mut rng: &mut rand::prelude::ThreadRng) -> [f64;13] {
-    let mut genes = [0.0;13];
+pub fn get_genes_second_particle(entity: &mut Entity, mut rng: &mut rand::prelude::ThreadRng) -> [f64;GENES_PER_PARTICLE_2] {
+    let mut genes = [0.0;GENES_PER_PARTICLE_2];
     for i in 0..genes.len() {
         genes[i] = get_next_gene(entity, &mut rng);
     }
     return genes;
 }
-pub fn get_genes_other_particle(entity: &mut Entity, mut rng: &mut rand::prelude::ThreadRng) -> [f64;17] {
-    let mut genes = [0.0;17];
+pub fn get_genes_other_particle(entity: &mut Entity, mut rng: &mut rand::prelude::ThreadRng) -> [f64;GENES_PER_PARTICLE] {
+    let mut genes = [0.0;GENES_PER_PARTICLE];
     for i in 0..genes.len() {
         genes[i] = get_next_gene(entity, &mut rng);
     }
     return genes;
 }
-
-
-
 pub fn get_genes_first_particle_from_conf(particle_conf: &ParticleConfiguration) -> [f64;5] {
     let mut genes = [0.5;5];
     genes[0] = 1.0;
@@ -112,8 +118,8 @@ pub fn get_genes_first_particle_from_conf(particle_conf: &ParticleConfiguration)
     }
     return genes;
 }
-pub fn get_genes_second_particle_from_conf(particle_conf: &ParticleConfiguration) -> [f64;13] {
-    let mut genes = [0.5;13];
+pub fn get_genes_second_particle_from_conf(particle_conf: &ParticleConfiguration) -> [f64;GENES_PER_PARTICLE_2] {
+    let mut genes = [0.5;GENES_PER_PARTICLE_2];
     let genes_first =  get_genes_first_particle_from_conf(particle_conf);
     for i in 0..genes_first.len() {
         genes[i] = genes_first[i];
@@ -123,12 +129,16 @@ pub fn get_genes_second_particle_from_conf(particle_conf: &ParticleConfiguration
         ParticleType::Eye =>        genes[6] = 0.75,
         ParticleType::Mouth =>      genes[7] = 0.75,
         ParticleType::Default =>    genes[8] = 0.75,
+        ParticleType::Turbo =>      genes[9] = 0.75,
+        ParticleType::Clock =>      genes[10] = 0.75,
+        ParticleType::Stomach =>    genes[11] = 0.75,
+        ParticleType::Constant =>   genes[12] = 0.75,
         _ => {}
     };
     return genes;
 }
-pub fn get_genes_particle_from_conf(particle_conf: &ParticleConfiguration) -> [f64;17] {
-    let mut genes = [0.5;17];
+pub fn get_genes_particle_from_conf(particle_conf: &ParticleConfiguration) -> [f64;GENES_PER_PARTICLE] {
+    let mut genes = [0.5;GENES_PER_PARTICLE];
     let genes_second =  get_genes_second_particle_from_conf(particle_conf);
     for i in 0..genes_second.len() {
         genes[i] = genes_second[i];
@@ -173,7 +183,7 @@ pub fn add_first_particle(chunk: &mut Chunk, euuid: &euuid, rng: &mut rand::prel
     entity.puuids.insert(puuid);
     return puuid;
 }
-fn get_cell_type(genes: [f64; 4]) -> ParticleType {
+fn get_cell_type(genes: [f64; 8]) -> ParticleType {
     let mut max_gene = 0.0;
     let mut id = 0;
     for (i, v) in genes.iter().enumerate() {
@@ -186,7 +196,15 @@ fn get_cell_type(genes: [f64; 4]) -> ParticleType {
         0 => ParticleType::Muscle,
         1 => ParticleType::Eye,
         2 => ParticleType::Mouth,
-        _ => ParticleType::Default
+        3 => ParticleType::Default,
+        4 => ParticleType::Turbo,
+        5 => ParticleType::Clock,
+        6 => ParticleType::Stomach,
+        7 => ParticleType::Constant,
+        _ => {
+            println!("get_cell_type error: {}", id);
+            ParticleType::Default
+        }
     }
 }
 pub fn add_second_particle(chunk: &mut Chunk, euuid: &euuid, rng: &mut rand::prelude::ThreadRng, puuid_a: puuid) {
@@ -204,12 +222,16 @@ pub fn add_second_particle(chunk: &mut Chunk, euuid: &euuid, rng: &mut rand::pre
     let cell_type_genes = [         genes[5],
                                     genes[6],
                                     genes[7],
-                                    genes[8]
+                                    genes[8],
+                                    genes[9],
+                                    genes[10],
+                                    genes[11],
+                                    genes[12]
     ];
-    let gene_weight_a_b =           genes[9];
-    let gene_weight_b_a =           genes[10];
-    let gene_duplication_coefficient_a_b = genes[11];
-    let gene_duplication_coefficient_b_a = genes[12];
+    let gene_weight_a_b =           genes[13];
+    let gene_weight_b_a =           genes[14];
+    let gene_duplication_coefficient_a_b = genes[15];
+    let gene_duplication_coefficient_b_a = genes[16];
     //
     let type_ = get_cell_type(cell_type_genes);
     chunk.particles.insert(puuid_b, Particle{
@@ -255,16 +277,20 @@ pub fn add_particle(chunk: &mut Chunk, euuid: &euuid, puuid_pair: [puuid; 2], mu
     let cell_type_genes = [         genes[5],
                                     genes[6],
                                     genes[7],
-                                    genes[8]
+                                    genes[8],
+                                    genes[9],
+                                    genes[10],
+                                    genes[11],
+                                    genes[12]
     ];
-    let gene_weight_a_c =           genes[9];
-    let gene_weight_c_a =           genes[10];
-    let gene_weight_b_c =           genes[11];
-    let gene_weight_c_b =           genes[12];
-    let gene_duplication_coefficient_a_c = genes[13];
-    let gene_duplication_coefficient_c_a = genes[14];
-    let gene_duplication_coefficient_b_c = genes[15];
-    let gene_duplication_coefficient_c_b = genes[16];
+    let gene_weight_a_c =           genes[13];
+    let gene_weight_c_a =           genes[14];
+    let gene_weight_b_c =           genes[15];
+    let gene_weight_c_b =           genes[16];
+    let gene_duplication_coefficient_a_c = genes[17];
+    let gene_duplication_coefficient_c_a = genes[18];
+    let gene_duplication_coefficient_b_c = genes[19];
+    let gene_duplication_coefficient_c_b = genes[20];
     //
     let type_ = get_cell_type(cell_type_genes);
     let puuid_a = puuid_pair[0];

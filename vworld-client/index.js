@@ -16,8 +16,28 @@ const conf = {
       'black': '#111'
     },
     'mouth': {
-      'red': '#800',
-      'black': '#000'
+      'back': {
+        'r': 25.0,
+        'g': 70.0,
+        'b': 150.0
+      },
+      'top': {
+        'r': 25.0,
+        'g': 100.0,
+        'b': 255.0
+      }
+    },
+    'turbo': {
+      'back': {
+        'r': 192.0,
+        'g': 0.0,
+        'b': 0.0
+      },
+      'top': {
+        'r': 255.0,
+        'g': 255.0,
+        'b': 0.0
+      }
     },
     'line_of_sight': '#aaa'
   },
@@ -64,9 +84,7 @@ const connect = () => {
       data.socket_pairs.shift()
     }
     let reader = new WebSocket(url);
-    //reader.binaryType = "arraybuffer";
     let writer = new WebSocket(url);
-    //reader.binaryType = "arraybuffer";
     let latency_checker = new WebSocket(url);
     data.socket_pairs.push({
       'reader': reader,
