@@ -177,7 +177,6 @@ fn update_outputs (
         let particle = chunk.particles.get(puuid).unwrap();
         spu.output = match particle.type_ {
             ParticleType::Heart => {
-                //(simulation_time_s * particle.frequency * max_frequency + particle.phase * 2.0 * std::f64::consts::PI).sin() * 0.5 + 0.5
                 1.0
             },
             ParticleType::Clock => {
@@ -187,7 +186,7 @@ fn update_outputs (
                 particle.bias_weight
             },
             ParticleType::Stomach => {
-                particle.energy
+                1.0 - particle.energy
             },
             ParticleType::Eye => {
                 if particle.is_colliding_other_entity {
@@ -204,8 +203,8 @@ fn update_outputs (
                 }
             },
             _ => {
-                let mut output = 0.0;//particle.bias_weight;
-                let mut divisor = 0.0;//particle.bias_weight.abs();
+                let mut output = 0.0;
+                let mut divisor = 0.0;
                 for link in particle.links.values() {
                     output += link.weight * chunk.particles.get(&link.puuid_linked).unwrap().output;
                     divisor += link.weight.abs();
@@ -217,7 +216,7 @@ fn update_outputs (
                 output
             }
         };
-        if spu.output > 1.0 || spu.output < -1.0 {
+        if spu.output > 1.0 || spu.output < 0.0 {
             println!("bad output: {}", spu.output);
         }
     }

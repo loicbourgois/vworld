@@ -44,10 +44,6 @@ const render = () => {
     } else if (particle.type_ == "Mouth") {
       let x = particle.x + particle.direction.x * particle.diameter * 0.35;
       let y = particle.y + particle.direction.y * particle.diameter * 0.35;
-      /*if (Math.abs(particle.direction.x) < 0.1 && Math.abs(particle.direction.y)  < 0.1) {
-        x = particle.x + 0.0 * particle.diameter * 0.35;
-        y = particle.y - 1.0 * particle.diameter * 0.35;
-      }*/
       draw_mouth(canvas_1, x, y, particle.diameter, zoom, center_x, center_y, particle.output)
       draw_body_up(canvas_1, particle.x, particle.y, particle.diameter*0.65, zoom, center_x, center_y)
     } else if (particle.type_ == "Turbo") {
