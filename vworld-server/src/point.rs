@@ -1,7 +1,8 @@
+use serde::{Deserialize, Serialize};
 //
 // Represent 2d coordinates
 //
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Serialize, Deserialize)]
 pub struct Point {
     pub x: f64,
     pub y: f64
@@ -34,7 +35,7 @@ impl Point {
     //
     // Returns the distance between two Points.
     //
-    //pub fn get_distance_2(p1: & Point, p2: & Point) -> f64 {
-    //    Point::get_distance(p1.x, p1.y, p2.x, p2.y)
-    //}
+    pub fn get_distance_2(p1: & Point, p2: & Point) -> f64 {
+        Point::get_distance(p1.x, p1.y, p2.x, p2.y)
+    }
 }

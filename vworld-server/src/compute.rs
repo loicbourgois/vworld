@@ -8,6 +8,17 @@ use crate::Particle;
 use rand::prelude::*;
 use crate::particle::ParticleType;
 use crate::particle::ParticleData;
+use crate::client::VisionData;
+//
+// A segment is defined by two pair of xy coordinates
+//
+#[derive(Copy, Clone)]
+pub struct Segment {
+    pub x1: f64,
+    pub y1: f64,
+    pub x2: f64,
+    pub y2: f64
+}
 #[derive(Copy, Clone)]
 pub struct Collision {
     pub puuids: [puuid; 2],
@@ -36,6 +47,7 @@ pub struct ComputeOutputData {
     pub id: usize,
     pub multiple_particle_updates: HashMap<puuid, MultipleParticleUpdate>,
     pub single_particle_updates: HashMap<puuid, SingleParticleUpdate>,
+    pub vision_data: Vec<VisionData>,
 }
 pub fn compute(
     _id: usize,
@@ -44,6 +56,7 @@ pub fn compute(
     luuids: &Vec<luuid>,
     single_particle_updates: &mut HashMap<puuid, SingleParticleUpdate>,
     mut multiple_particle_updates: &mut HashMap<puuid, MultipleParticleUpdate>,
+    vision_data: &mut Vec<VisionData>,
 ) {
     let mut collisions: Vec<Collision> = Vec::new();
     let mut forces_by_puuid: HashMap<puuid, Vector> = HashMap::new();
@@ -51,7 +64,7 @@ pub fn compute(
     reset_multiple_particle_updates(chunk, multiple_particle_updates);
     compute_collisions(chunk, puuids, &mut collisions);
     update_from_collisions(chunk, &collisions, &mut multiple_particle_updates);
-    update_outputs(chunk, single_particle_updates);
+    update_outputs(chunk, single_particle_updates, vision_data);
     setup_forces(&mut forces_by_puuid, chunk);
     compute_forces(&mut forces_by_puuid, chunk, puuids, luuids);
     update_from_forces(&forces_by_puuid, &mut multiple_particle_updates, chunk);
@@ -166,9 +179,121 @@ fn update_diameter(
         }
     }
 }
+fn get_eye_output (
+    chunk: &Chunk,
+    puuid: &puuid
+) -> Option<(f64, VisionData)> {
+    let p = chunk.particles.get(puuid).unwrap();
+    let direction = match p.data {
+        ParticleData::EyeData {direction} => {
+            direction
+        },
+        _ => {
+            //println!("this is not an eye");
+            //Vector {x: 0.0, y: 0.0}
+            return None
+        },
+    };
+    let p_center = Point{x:p.x, y:p.y};
+    let mut puuid_target = 0;
+    let segment = Segment {
+        x1: p.x,
+        y1: p.y,
+        x2: p.x + direction.x * chunk.constants.eye_sight_length,
+        y2: p.y + direction.y * chunk.constants.eye_sight_length
+    };
+    let mut best_ratio_distance_to_intersection = 2.0;
+    let mut inter_point = Point{x:0.0, y:0.0};
+    for (puuid_b, p_b) in &chunk.particles {
+        if p_b.euuid != p.euuid {
+            let circle_center = Point {
+                x: p_b.x,
+                y: p_b.y
+            };
+            let circle_radius = p_b.diameter * 0.5;
+            let intersection = approximate_segment_circle_intersection(&segment, circle_center, circle_radius);
+            match intersection {
+                Some(intersection_point) => {
+                    let ratio_distance_to_intersection = Point::get_distance_2(&p_center, &intersection_point) / chunk.constants.eye_sight_length;
+                    if ratio_distance_to_intersection < best_ratio_distance_to_intersection {
+                        best_ratio_distance_to_intersection = ratio_distance_to_intersection;
+                        inter_point = intersection_point;
+                        puuid_target = *puuid_b;
+                    }
+                },
+                None => {}
+            }
+        }
+    }
+    if best_ratio_distance_to_intersection > 1.0 {
+        return None;
+    } else {
+        return Some((1.0-best_ratio_distance_to_intersection, VisionData {
+            puuid_eye: *puuid,
+            puuid_target: puuid_target,
+            origin: p_center,
+            target: inter_point,
+        }));
+    }
+}
+//
+// Returns an approximation of the intersection between a segment and a circle.
+//
+fn approximate_segment_circle_intersection(
+        segment: & Segment,
+        circle_center: Point,
+        circle_radius: f64
+) -> Option<Point> {
+    let closest_point_option = get_closest_point_on_segment(&circle_center, &segment);
+    match closest_point_option {
+        Some(closest_point) => {
+            let distance = Point::get_distance_2(&closest_point, &circle_center);
+            if distance <= circle_radius {
+                Some(closest_point)
+            } else {
+                None
+            }
+        },
+        None => {
+            None
+        }
+    }
+}
+//
+// Returns the point closest to point p.
+// This point belongs to the segment s.
+//
+fn get_closest_point_on_segment(p: & Point, s: & Segment) -> Option<Point> {
+    let x_delta = s.x2 - s.x1;
+    let y_delta = s.y2 - s.y1;
+    if x_delta == 0.0 && y_delta == 0.0 {
+        return None;
+    } else {
+        // Do nothing
+    }
+    let u = ((p.x - s.x1) * x_delta + (p.y - s.y1) * y_delta) / (x_delta * x_delta + y_delta * y_delta);
+    let closest_point = if u < 0.0 {
+        Point {
+            x: s.x1,
+            y: s.y1
+        }
+    } else if u > 1.0 {
+        Point {
+            x: s.x2,
+            y: s.y2
+        }
+    } else {
+        Point {
+            x: s.x1 + u * x_delta,
+            y: s.y1 + u * y_delta
+        }
+    };
+    return Some(closest_point);
+}
 fn update_outputs (
     chunk: &Chunk,
-    single_particle_updates: &mut HashMap<puuid, SingleParticleUpdate>
+    single_particle_updates: &mut HashMap<puuid, SingleParticleUpdate>,
+    vision_data: &mut Vec<VisionData>
 ) {
     let simulation_time_s = chunk.step as f64 * chunk.constants.delta_time;
     // TODO: refactor using constants
@@ -189,10 +314,14 @@ fn update_outputs (
                 1.0 - particle.energy
             },
             ParticleType::Eye => {
-                if particle.is_colliding_other_entity {
-                    1.0
-                } else {
-                    0.0
+                match get_eye_output(chunk, puuid) {
+                    Some((output, vision_data_point)) => {
+                        vision_data.push(vision_data_point);
+                        output
+                    },
+                    None => {
+                        0.0
+                    }
                 }
             },
             ParticleType::Mouth => {

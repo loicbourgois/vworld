@@ -24,6 +24,23 @@ const render = () => {
   const simulation_speed = simulation_time_s / real_time_s
   context_1.clearRect(0, 0, canvas_1.width, canvas_1.height)
   context_2.clearRect(0, 0, canvas_2.width, canvas_2.height)
+  if (document.getElementById('show_line_of_sight').checked) {
+    for (let particle_id in chunk.particles) {
+      const particle = chunk.particles[particle_id]
+      if (particle.type_ == "Eye") {
+        const x = particle.x + particle.direction.x * chunk.constants.eye_sight_length;
+        const y = particle.y + particle.direction.y * chunk.constants.eye_sight_length;
+        draw_dotted_line(particle.x, particle.y, x, y, zoom, conf.colors.line_of_sight)
+      }
+    }
+  }
+  if (document.getElementById('show_vision').checked) {
+    for (let point_id in chunk.vision_data) {
+        const p = chunk.vision_data[point_id].origin
+        const p2 = chunk.vision_data[point_id].target
+        draw_line(p.x, p.y, p2.x, p2.y, zoom, conf.colors.line_of_sight)
+    }
+  }
   for (let particle_id in chunk.particles) {
     const particle = chunk.particles[particle_id]
     if (particle.type_ == "Plant") {
@@ -74,6 +91,12 @@ const render = () => {
       }
     }
   }
+  if (document.getElementById('show_points_of_sight').checked) {
+    for (let point_id in chunk.vision_data) {
+        const p = chunk.vision_data[point_id].target
+        draw_vision_point(canvas_1, p, zoom, center_x, center_y)
+    }
+  }
   document.getElementById('fps').innerHTML = fps.toFixed(2);
   document.getElementById('step').innerHTML = chunk.step;
   document.getElementById('simulation_time').innerHTML = tohhmmss(simulation_time_s);
@@ -122,16 +145,7 @@ const render = () => {
       draw_line(entity.x_start, entity.y_start, entity.x, entity.y, zoom, conf.colors.travel)
     }
   }
-  if (document.getElementById('show_line_of_sight').checked) {
-    for (let particle_id in chunk.particles) {
-      const particle = chunk.particles[particle_id]
-      if (particle.type_ == "Eye") {
-        const x = particle.x + particle.data.EyeData.direction.x * chunk.constants.eye_sight_length;
-        const y = particle.y + particle.data.EyeData.direction.y * chunk.constants.eye_sight_length;
-        draw_line(particle.x, particle.y, x, y, zoom, conf.colors.line_of_sight)
-      }
-    }
-  }
+
   for (let particle_id in chunk.particles) {
     const particle = chunk.particles[particle_id]
     if (particle.type_ == "Plant") {
@@ -309,6 +323,11 @@ const draw_line = (x1, y1, x2, y2, zoom, color) => {
   context_1.strokeStyle = color
   context_1.stroke()
 }
+const draw_dotted_line = (x1, y1, x2, y2, zoom, color) => {
+  context_1.setLineDash([1, 10]);
+  draw_line(x1, y1, x2, y2, zoom, color);
+  context_1.setLineDash([1, 0]);
+}
 const draw_link = (x1, y1, x2, y2, zoom) => {
   draw_line(x1, y1, x2, y2, zoom, conf.colors.link)
 }
@@ -319,11 +338,7 @@ const draw_disk = (canvas, x, y, diameter, zoom, center_x, center_y, color) => {
   const endAngle = Math.PI + (Math.PI * 360) * 0.5;
   const context = canvas.getContext('2d')
   context.beginPath();
-  //try {
-    context.arc(p.x, p.y, radius_canvas, startAngle, endAngle);
-  //} catch (e) {
-  //  log_x_time(3, [p.x, p.y, radius_canvas, startAngle, endAngle])
-  //}
+  context.arc(p.x, p.y, radius_canvas, startAngle, endAngle);
   context.fillStyle = color;
   context.fill();
 }
@@ -354,6 +369,9 @@ const draw_mouth = (canvas, x, y, diameter, zoom, center_x, center_y, particle_o
   b = conf.colors.mouth.top.b * (particle_output* 0.5 + 0.5);
   draw_disk(canvas, x, y, diameter * 0.55, zoom, center_x, center_y, `rgb(${r}, ${g}, ${b})`)
 
+}
+const draw_vision_point = (canvas, p, zoom, center_x, center_y) => {
+  draw_disk(canvas, p.x, p.y, 0.005, zoom, center_x, center_y, conf.colors.vision_points)
 }
 const draw_body = (canvas, x, y, diameter, zoom, center_x, center_y) => {
   draw_disk(canvas, x, y, diameter, zoom, center_x, center_y, conf.colors.body)

@@ -39,7 +39,8 @@ const conf = {
         'b': 0.0
       }
     },
-    'line_of_sight': '#aaa'
+    'line_of_sight': '#eea',
+    'vision_points': '#eea'
   },
   'urls': [
     'ws://127.0.0.1:10001',
@@ -108,7 +109,6 @@ const log_x_time = (x, message) => {
   logged_count += 1;
 }
 const log = (message) => {
-  console.log(message);
   const textarea_logs = document.getElementById('logs')
   textarea_logs.value += message + '\n';
   textarea_logs.scrollTop = textarea_logs.scrollHeight;
