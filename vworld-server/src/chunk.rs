@@ -18,6 +18,7 @@ use crate::entity::add_new_bloop_from_dna_at;
 use crate::particle::get_genes_first_particle_from_conf;
 use crate::particle::get_genes_second_particle_from_conf;
 use crate::particle::get_genes_particle_from_conf;
+use crate::client::VisionData;
 #[derive(Serialize, Deserialize)]
 pub struct Chunk {
     pub width: f64,
@@ -41,6 +42,7 @@ pub struct Chunk {
     pub stats: Vec<Stats>,
     pub thread_count: usize,
     pub json: String,
+    pub vision_data: Vec<VisionData>,
 }
 #[derive(Serialize, Deserialize)]
 struct EntityConfiguration {
@@ -129,6 +131,7 @@ pub fn create_chunk_from_configuration_str(configuration_str: &str) -> Chunk {
             ThreadCount::value(value) => value
         },
         json: "".to_string(),
+        vision_data: Vec::new(),
     };
     for (i, human_entity_config) in configuration.human_entities.iter().enumerate() {
         println!("loading entity #{}", i);

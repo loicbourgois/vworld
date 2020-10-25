@@ -14,6 +14,8 @@ use crate::point::Point;
 mod entity;
 mod chunk;
 mod compute;
+mod client;
+use crate::client::VisionData;
 use crate::particle::Color;
 use crate::compute::ComputeInputData;
 use crate::compute::ComputeOutputData;
@@ -90,6 +92,7 @@ struct Data {
     best_dna_alive_by_age: BestDnaStat,
     best_dna_ever_by_distance_traveled: BestDnaStat,
     best_dna_alive_by_distance_traveled: BestDnaStat,
+    vision_data: Vec<VisionData>,
 }
 fn main() {
     let address: String = env::var("vworld_address").unwrap();
@@ -125,6 +128,7 @@ fn main() {
                 let input_data = thread_input_receiver.recv().unwrap();
                 let mut single_particle_updates = HashMap::new();
                 let mut multiple_particle_updates = HashMap::new();
+                let mut vision_data = Vec::new();
                 compute(
                     i,
                     &chunk_lock_clone.read().unwrap(),
@@ -132,16 +136,21 @@ fn main() {
                     &input_data.luuids,
                     &mut single_particle_updates,
                     &mut multiple_particle_updates,
+                    &mut vision_data,
                 );
                 let output_data = ComputeOutputData {
                     id: i,
                     single_particle_updates: single_particle_updates,
                     multiple_particle_updates: multiple_particle_updates,
+                    vision_data: vision_data,
                 };
                 thread_output_sender.send(output_data).unwrap();
             }
         }));
     }
+    //
+    // Client data thread
+    //
     let client_data = "".to_string();
     let client_data_lock = Arc::new(RwLock::new(client_data));
     {
@@ -173,6 +182,7 @@ fn main() {
                             age_in_ticks: chunk_read.best_dna_alive_by_distance_traveled.age_in_ticks,
                             distance_traveled: chunk_read.best_dna_alive_by_distance_traveled.distance_traveled,
                         },
+                        vision_data: chunk_read.vision_data.to_vec(),
                     };
                     for p in chunk_read.particles.values() {
                         let color = match p.data {
@@ -219,7 +229,9 @@ fn main() {
             }
         });
     }
+    //
     // Main loop
+    //
     {
         println!("starting server...");
         let chunk_lock_clone = Arc::clone(&chunk_lock);
@@ -275,7 +287,8 @@ fn main() {
                         p.x += dx;
                         p.y += dy;
                     }
-                    for output in &outputs {
+                    chunk.vision_data = Vec::new();
+                    for output in &mut outputs {
                         for (puuid, spu) in &output.single_particle_updates {
                             let p = chunk.particles.get_mut(puuid).unwrap();
                             p.output = spu.output;
@@ -316,6 +329,7 @@ fn main() {
                             p.energy += multiple_particle_update.energy;
                             p.is_colliding_other_entity = multiple_particle_update.is_colliding_other_entity || p.is_colliding_other_entity;
                         }
+                        chunk.vision_data.append(&mut output.vision_data);
                     }
                 }
                 //
