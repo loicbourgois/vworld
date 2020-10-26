@@ -21,7 +21,7 @@
     "max_stats_count": 1000,
     "plant": {
       "mutation_rate": 1,
-      "max_mutation_strength": 0.01,
+      "max_mutation_strength": 0.1,
       "new_dna_rate": 0,
       "min_count": 1000,
       "energy_drop_rate_per_tick": 0,
@@ -50,5 +50,7 @@
     "destroy_unstable_entities": true,
     "min_duplication_coefficient": 0.5
   },
-  "thread_count": "auto"
+  "thread_count": {
+    "value": 1
+  }
 }
