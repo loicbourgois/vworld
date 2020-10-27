@@ -11,9 +11,11 @@ use crate::particle::add_second_particle;
 use crate::particle::add_particle;
 use crate::vector::Vector;
 use crate::point::Point;
+use crate::entity::add_new_bloop_from_dna_at;
 mod entity;
 mod chunk;
 mod compute;
+use crate::particle::get_age;
 mod client;
 use crate::client::VisionData;
 use crate::particle::Color;
@@ -342,6 +344,7 @@ fn main() {
                     let mut entities_by_type: HashMap<EntityType, i32> = HashMap::new();
                     entities_by_type.insert(EntityType::Plant, 0);
                     entities_by_type.insert(EntityType::Bloop, 0);
+                    entities_by_type.insert(EntityType::Egg, 0);
                     for entity in chunk.entities.values() {
                         match &entity.type_ {
                             type_ => *entities_by_type.get_mut(&type_).unwrap() += 1
@@ -353,7 +356,9 @@ fn main() {
                     if plant_to_add_count > 0 {
                         add_new_plant(&mut chunk, None, None);
                     }
-                    let bloop_to_add_count = chunk.constants.bloop.min_count as i32 - entities_by_type.get(&EntityType::Bloop).unwrap();
+                    let bloop_to_add_count = chunk.constants.bloop.min_count as i32
+                        - entities_by_type.get(&EntityType::Bloop).unwrap()
+                        - entities_by_type.get(&EntityType::Egg).unwrap();
                     if bloop_to_add_count > 0 {
                         add_new_bloop(&mut chunk);
                     }
@@ -399,9 +404,31 @@ fn main() {
                         chunk.particles.get_mut(&puuid_a).unwrap().energy = energy;
                         chunk.particles.get_mut(&puuid_b).unwrap().energy = energy;
                     }
+                    //
+                    let mut particles_to_remove: HashSet<puuid> = HashSet::new();
+                    struct EggToAdd {
+                        x: f64,
+                        y: f64,
+                        dna: Vec<f64>,
+                    };
+                    let mut eggs_to_hatch = Vec::new();
+                    for (puuid, particle) in  chunk.particles.iter() {
+                        match particle.type_ {
+                            ParticleType::Egg => {
+                                if get_age(&chunk, particle) > chunk.constants.hatch_egg_age_ticks {
+                                    particles_to_remove.insert(*puuid);
+                                    eggs_to_hatch.push(EggToAdd {
+                                        x: particle.x,
+                                        y: particle.y,
+                                        dna: chunk.entities.get(&particle.euuid).unwrap().dna.to_vec(),
+                                    });
+                                }
+                            },
+                            _ => {}
+                        }
+                    }
                     // Prepare remove
                     let mut entities_to_remove: HashSet<euuid> = HashSet::new();
-                    let mut particles_to_remove: HashSet<puuid> = HashSet::new();
                     for (puuid, particle) in  chunk.particles.iter() {
                         if particle.energy <= energy_min {
                             particles_to_remove.insert(*puuid);
@@ -458,6 +485,10 @@ fn main() {
                     for euuid in entities_to_remove.iter() {
                         chunk.entities.remove(euuid);
                     }
+                    //
+                    for egg in eggs_to_hatch {
+                        add_new_bloop_from_dna_at(&mut chunk, egg.dna, egg.x, egg.y);
+                    }
                     // Update entity position
                     let mut entities_coord: HashMap<euuid, (f64, f64)> = HashMap::new();
                     for particle in chunk.particles.values() {
@@ -500,6 +531,9 @@ fn main() {
                     let mut distance_traveled_vec = Vec::new();
                     for entity in chunk.entities.values() {
                         match entity.type_ {
+                            EntityType::Egg => {
+                                // Do nothing
+                            },
                             EntityType::Plant => {
                                 // Do nothing
                             },
@@ -724,5 +758,9 @@ fn mean(v: &Vec<f64>) -> f64 {
 }
 fn mean_u32(v: &Vec<u32>) -> u32 {
     let sum: u32 = Iterator::sum(v.iter());
-    sum / (v.len() as u32)
+    if v.len() > 0 {
+        sum / (v.len() as u32)
+    } else {
+        0
+    }
 }

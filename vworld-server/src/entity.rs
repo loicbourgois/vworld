@@ -4,6 +4,7 @@ use crate::Chunk;
 use crate::euuid;
 use crate::puuid;
 use crate::Point;
+use crate::compute;
 use std::collections::HashSet;
 use std::collections::HashMap;
 use rand::Rng;
@@ -12,10 +13,13 @@ use crate::add_first_particle;
 use crate::add_second_particle;
 use crate::add_particle;
 use crate::particle::add_plant_particle;
+use crate::particle::add_egg_particle;
+use crate::particle::ParticleType;
 #[derive(Serialize, Deserialize, Hash, Eq)]
 pub enum EntityType {
     Plant = 1,
     Bloop = 2,
+    Egg = 3
 }
 impl PartialEq for EntityType {
     fn eq(&self, other: &Self) -> bool {
@@ -143,24 +147,8 @@ pub fn add_new_plant(mut chunk: &mut Chunk, coord_option: Option<Point>, dna_opt
     });
     add_plant_particle(&mut chunk, &euuid, &mut rng);
 }
-pub fn add_new_bloop_from_dna_at(mut chunk: &mut Chunk, mut dna: Vec<f64>, x:f64, y:f64) -> euuid {
+pub fn add_new_bloop_from_dna_at(mut chunk: &mut Chunk, dna: Vec<f64>, x:f64, y:f64) -> euuid {
     let mut rng = rand::thread_rng();
-    // Mutate dna
-    if rng.gen::<f64>() < chunk.constants.bloop.new_dna_rate {
-        for gen in dna.iter_mut() {
-            *gen = rng.gen::<f64>();
-        }
-    } else {
-        for gen in dna.iter_mut() {
-            if rng.gen::<f64>() < chunk.constants.bloop.gene_progressive_mutation_rate {
-                *gen = *gen + (rng.gen::<f64>() * chunk.constants.bloop.gene_progressive_mutation_strength * 2.0) - chunk.constants.bloop.gene_progressive_mutation_strength;
-                *gen = gen.max(0.0).min(1.0);
-            }
-            if rng.gen::<f64>() < chunk.constants.bloop.gene_random_mutation_rate {
-                *gen = rng.gen::<f64>();
-            }
-        }
-    }
     let euuid: euuid = bob::new_v4().as_u128();
     let constants = chunk.constants;
     chunk.entities.insert(euuid, Entity {
@@ -213,28 +201,91 @@ pub fn add_new_bloop_from_dna_at(mut chunk: &mut Chunk, mut dna: Vec<f64>, x:f64
     }
     return euuid;
 }
+struct EuuidDnaPair {
+    dna: Vec<f64>,
+    euuid: euuid,
+}
 pub fn add_new_bloop(chunk: &mut Chunk) {
     let mut rng = rand::thread_rng();
-    let mut dnas = Vec::new();
-    for entity in chunk.entities.values() {
+    let mut dnas: Vec<EuuidDnaPair> = Vec::new();
+    for (euuid, entity) in &chunk.entities {
         match entity.type_ {
-            EntityType::Bloop => dnas.push(entity.dna.to_vec()),
+            EntityType::Bloop => dnas.push(EuuidDnaPair{
+                dna: entity.dna.to_vec(),
+                euuid: *euuid,
+            }),
             _ => {}
         }
     }
     // Assign dna
-    let dna = if chunk.constants.use_distance_traveled_as_fitness_function && chunk.best_dna_alive_by_distance_traveled.dna.len() > 0 {
+    let mut x = rng.gen::<f64>();
+    let mut y = rng.gen::<f64>();
+    let mut lay_egg = false;
+    let mut dna = if chunk.constants.use_distance_traveled_as_fitness_function && chunk.best_dna_alive_by_distance_traveled.dna.len() > 0 {
         chunk.best_dna_alive_by_distance_traveled.dna.to_vec()
     } else if dnas.len() > 0 {
         let i = (rng.gen::<f64>() * dnas.len() as f64 ) as usize;
-        dnas[i].to_vec()
+        let euuid = dnas[i].euuid;
+        for p in chunk.particles.values() {
+            if p.euuid == euuid {
+                match p.type_ {
+                    ParticleType::Heart => {
+                        let direction = compute::get_direction(chunk, p);
+                        if chunk.constants.same_position_as_parent {
+                            x = (p.x + direction.x * p.diameter).max(0.0).min(1.0);
+                            y = (p.y + direction.y * p.diameter).max(0.0).min(1.0);
+                        }
+                        lay_egg = p.phase < chunk.constants.lay_egg_rate;
+                        break;
+                    },
+                    _ => {}
+                }
+            }
+        }
+        dnas[i].dna.to_vec()
     } else {
         Vec::new()
     };
-    let border = 0.0;
-    let x = rng.gen::<f64>() * (1.0 - 2.0 * border) + border;
-    let y = rng.gen::<f64>() * (1.0 - 2.0 * border) + border;
-    add_new_bloop_from_dna_at(chunk, dna, x, y);
+    // Mutate dna
+    let mut rng = rand::thread_rng();
+    if rng.gen::<f64>() < chunk.constants.bloop.new_dna_rate {
+        for gen in dna.iter_mut() {
+            *gen = rng.gen::<f64>();
+        }
+    } else {
+        for gen in dna.iter_mut() {
+            if rng.gen::<f64>() < chunk.constants.bloop.gene_progressive_mutation_rate {
+                *gen = *gen + (rng.gen::<f64>() * chunk.constants.bloop.gene_progressive_mutation_strength * 2.0) - chunk.constants.bloop.gene_progressive_mutation_strength;
+                *gen = gen.max(0.0).min(1.0);
+            }
+            if rng.gen::<f64>() < chunk.constants.bloop.gene_random_mutation_rate {
+                *gen = rng.gen::<f64>();
+            }
+        }
+    }
+    if lay_egg {
+        add_new_egg_from_dna_at(chunk, dna, x, y);
+    } else {
+        add_new_bloop_from_dna_at(chunk, dna, x, y);
+    }
+}
+pub fn add_new_egg_from_dna_at(mut chunk: &mut Chunk, dna: Vec<f64>, x:f64, y:f64) {
+    let euuid: euuid = bob::new_v4().as_u128();
+    chunk.entities.insert(euuid, Entity {
+        euuid: euuid,
+        puuids: HashSet::new(),
+        x_start: x,
+        y_start: y,
+        x: x,
+        y: y,
+        dna: dna,
+        next_gene_id: 0,
+        pairs: HashMap::new(),
+        pairs_taken: HashMap::new(),
+        tick_start: chunk.step,
+        type_: EntityType::Egg
+    });
+    let _puuid = add_egg_particle(&mut chunk, &euuid);
 }
 fn get_free_pairs(entity: &Entity) -> Vec<PairInfo> {
     let mut v: Vec<PairInfo> = Vec::new();

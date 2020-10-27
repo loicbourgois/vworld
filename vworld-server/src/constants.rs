@@ -28,6 +28,9 @@ pub struct Constants {
     pub use_distance_traveled_as_fitness_function: bool,
     pub min_duplication_coefficient: f64,
     pub turbo_max: f64,
+    pub hatch_egg_age_ticks: u32,
+    pub lay_egg_rate: f64,
+    pub same_position_as_parent: bool,
     // TODO: allow for configuration of particle max frequency
     //pub max_frequency_: f64,
 }

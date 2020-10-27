@@ -7,7 +7,9 @@
     "x": 0,
     "y": 0
   },
-  "thread_count": "auto",
+  "thread_count": {
+    "value": 2
+  },
   "constants": {
     "turbo_max": 2.0,
     "use_distance_traveled_as_fitness_function": false,
@@ -29,7 +31,7 @@
       "max_mutation_strength": 0.01,
       "new_dna_rate": 0.0,
       "min_count": 1000,
-      "energy_drop_rate_per_tick": 0.000,
+      "energy_drop_rate_per_tick": 0.0,
       "energy_drop_rate_per_tick_circle": 0.0
     },
     "bloop": {
@@ -39,7 +41,7 @@
       "new_dna_rate": 0.01,
       "min_count": 50,
       "energy_drop_rate_per_tick": 0.0002,
-      "starting_energy": 1.0,
+      "starting_energy": 0.5,
       "max_contraction": 0.5
     },
     "gravity": {
@@ -53,7 +55,10 @@
     "mouth_energy_consumption_rate_per_second": 0.01,
     "enable_auto_link_6": true,
     "destroy_unstable_entities": true,
-    "min_duplication_coefficient": 0.5
+    "min_duplication_coefficient": 0.5,
+    "hatch_egg_age_ticks": 1000,
+    "lay_egg_rate": 0.5,
+    "same_position_as_parent": false
   },
   "servers": {
     "0,0": {

@@ -34,7 +34,7 @@
       "new_dna_rate": 0.01,
       "min_count": 50,
       "energy_drop_rate_per_tick": 0.0002,
-      "starting_energy": 1,
+      "starting_energy": 0.5,
       "max_contraction": 0.5
     },
     "gravity": {
@@ -48,7 +48,12 @@
     "mouth_energy_consumption_rate_per_second": 0.01,
     "enable_auto_link_6": true,
     "destroy_unstable_entities": true,
-    "min_duplication_coefficient": 0.5
+    "min_duplication_coefficient": 0.5,
+    "hatch_egg_age_ticks": 1000,
+    "lay_egg_rate": 0.5,
+    "same_position_as_parent": false
   },
-  "thread_count": "auto"
+  "thread_count": {
+    "value": 2
+  }
 }

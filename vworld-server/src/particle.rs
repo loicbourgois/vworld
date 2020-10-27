@@ -13,6 +13,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use crate::chunk::ParticleConfiguration;
 use crate::entity::PairInfo;
+use rand::Rng;
 const GENES_PER_PARTICLE_2: usize = 17;
 const GENES_PER_PARTICLE: usize = 21;
 #[derive(Copy, Clone, Serialize, Deserialize)]
@@ -52,7 +53,8 @@ pub enum ParticleType {
     Turbo,
     Clock,
     Stomach,
-    Constant
+    Constant,
+    Egg
 }
 // Represents a link to another particle, from the current particle
 #[derive(Serialize, Deserialize)]
@@ -300,9 +302,19 @@ pub fn add_particle(chunk: &mut Chunk, euuid: &euuid, puuid_pair: [puuid; 2], mu
     let luuid_b_c = bob::new_v4().as_u128();
     let p_a = &chunk.particles[&puuid_a];
     let p_b = &chunk.particles[&puuid_b];
-    let normalized_vector = Vector::get_normalized_vector(p_a.x, p_a.y, p_b.x, p_b.y);
-    let x = (p_a.x + p_b.x) * 0.5 - normalized_vector.unwrap().y * chunk.constants.default_diameter;
-    let y = (p_a.y + p_b.y) * 0.5 + normalized_vector.unwrap().x * chunk.constants.default_diameter;
+    let (x, y) = match Vector::get_normalized_vector(p_a.x, p_a.y, p_b.x, p_b.y) {
+        Some(normalized_vector) => {
+            let x = (p_a.x + p_b.x) * 0.5 - normalized_vector.y * chunk.constants.default_diameter;
+            let y = (p_a.y + p_b.y) * 0.5 + normalized_vector.x * chunk.constants.default_diameter;
+            (x, y)
+        },
+        None => {
+            let x = (p_a.x + p_b.x) * 0.5 - rng.gen::<f64>() * chunk.constants.default_diameter;
+            let y = (p_a.y + p_b.y) * 0.5 + rng.gen::<f64>() * chunk.constants.default_diameter;
+            (x, y)
+        }
+    };
+
     chunk.entities.get_mut(euuid).unwrap().puuids.insert(puuid_c);
     chunk.particles.insert(puuid_c, Particle{
         puuid: puuid_c,
@@ -471,6 +483,35 @@ pub fn add_plant_particle(chunk: &mut Chunk, euuid: &euuid, mut rng: &mut rand::
     entity.puuids.insert(puuid);
     return puuid;
 }
+pub fn add_egg_particle(chunk: &mut Chunk, euuid: &euuid) -> puuid {
+    let entity = chunk.entities.get_mut(euuid).unwrap();
+    let energy = 1.0;
+    let puuid = bob::new_v4().as_u128();
+    chunk.particles.insert(puuid, Particle{
+        puuid: puuid,
+        x: entity.x_start,
+        y: entity.y_start,
+        x_old: entity.x_start,
+        y_old: entity.y_start,
+        mass: chunk.constants.default_mass,
+        base_diameter: chunk.constants.default_diameter,
+        diameter: chunk.constants.default_diameter,
+        type_: ParticleType::Egg,
+        energy: energy,
+        euuid: *euuid,
+        links: HashMap::new(),
+        duplication_coefficient: 0.0,
+        frequency: 0.0,
+        phase: 0.0,
+        data: ParticleData::None,
+        output: 0.0,
+        bias_weight: 0.0,
+        is_colliding_other_entity: false,
+        max_contraction: 0.0,
+    });
+    entity.puuids.insert(puuid);
+    return puuid;
+}
 fn particles_are_paired(entity: &Entity, puuid_a: puuid, puuid_b: puuid) -> bool {
     match entity.pairs.get(&puuid_a) {
         Some(hashset) => {
@@ -549,4 +590,7 @@ fn add_pair_taken(pairs: &mut HashMap<puuid, HashSet<puuid>>, puuid_a: puuid, pu
             pairs.insert(puuid_a, hashset);
         }
     }
+}
+pub fn get_age(chunk: &Chunk, particle: &Particle) -> u32 {
+    return chunk.step - chunk.entities.get(&particle.euuid).unwrap().tick_start;
 }
