@@ -64,11 +64,12 @@ const render = () => {
       draw_mouth(canvas_1, x, y, particle.diameter, zoom, center_x, center_y, particle.output)
       draw_body_up(canvas_1, particle.x, particle.y, particle.diameter*0.65, zoom, center_x, center_y)
     } else if (particle.type_ == "Turbo") {
-      log_x_time(2, particle);
       const x = particle.x + particle.direction.x * particle.diameter * 0.3;
       const y = particle.y + particle.direction.y * particle.diameter * 0.3;
       draw_turbo(canvas_1, x, y, particle.diameter, zoom, center_x, center_y, particle.output)
       draw_body_up(canvas_1, particle.x, particle.y, particle.diameter*0.65, zoom, center_x, center_y)
+    } else if (particle.type_ == "Egg") {
+      draw_egg(canvas_1, particle.x, particle.y, particle.diameter, zoom, center_x, center_y)
     }
   }
   if (document.getElementById('show_outputs').checked) {
@@ -334,6 +335,12 @@ const draw_link = (x1, y1, x2, y2, zoom) => {
 const draw_disk = (canvas, x, y, diameter, zoom, center_x, center_y, color) => {
   const p = get_canvas_coord(canvas, x, y, zoom, center_x, center_y)
   const radius_canvas = diameter * 0.5 * canvas.width * zoom;
+  if (p.x > canvas.width + radius_canvas
+    || p.x < - radius_canvas
+    || p.y > canvas.height + radius_canvas
+    || p.y < - radius_canvas)  {
+    return
+  }
   const startAngle = 0;
   const endAngle = Math.PI + (Math.PI * 360) * 0.5;
   const context = canvas.getContext('2d')
@@ -375,6 +382,9 @@ const draw_vision_point = (canvas, p, zoom, center_x, center_y) => {
 }
 const draw_body = (canvas, x, y, diameter, zoom, center_x, center_y) => {
   draw_disk(canvas, x, y, diameter, zoom, center_x, center_y, conf.colors.body)
+}
+const draw_egg = (canvas, x, y, diameter, zoom, center_x, center_y) => {
+  draw_disk(canvas, x, y, diameter, zoom, center_x, center_y, conf.colors.egg)
 }
 const draw_body_up = (canvas, x, y, diameter, zoom, center_x, center_y) => {
   draw_disk(canvas, x, y, diameter, zoom, center_x, center_y, conf.colors.body_up)

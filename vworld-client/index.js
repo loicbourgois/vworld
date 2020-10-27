@@ -3,6 +3,7 @@ const conf = {
   'colors': {
     'health': '#8fa',
     'body':   '#8cf',
+    'egg':    '#faa',
     'body_up':'#8cf',
     'travel': '#a88',
     'link':   '#eee',

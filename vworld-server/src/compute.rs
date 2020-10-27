@@ -98,7 +98,7 @@ fn reset_multiple_particle_updates (
         });
     }
 }
-fn get_direction(chunk: &Chunk, particle_a: &Particle) -> Vector {
+pub fn get_direction(chunk: &Chunk, particle_a: &Particle) -> Vector {
     let mut direction = Vector {
         x: 0.0,
         y: 0.0,

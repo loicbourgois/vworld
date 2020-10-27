@@ -12,6 +12,7 @@ use std::collections::HashMap;
 use crate::add_new_plant;
 use serde_json as json;
 use std::collections::HashSet;
+use crate::Point;
 use crate::ParticleType;
 use crate::stat::AverageStat;
 use crate::entity::add_new_bloop_from_dna_at;
@@ -141,9 +142,13 @@ pub fn create_chunk_from_configuration_str(configuration_str: &str) -> Chunk {
         let eeuid = add_new_bloop_from_dna_at(&mut chunk, dna, human_entity_config.x, human_entity_config.y);
         println!("  real dna len:         {}", chunk.entities.get(&eeuid).unwrap().dna.len() );
     }
-    for _ in 0..configuration.constants.plant.min_count {
-        add_new_plant(&mut chunk, None, None);
+    if chunk.entities.len() == 0 {
+        add_new_bloop_from_dna_at(&mut chunk, Vec::new(), 0.6, 0.4);
+        add_new_bloop_from_dna_at(&mut chunk, Vec::new(), 0.6, 0.6);
+        add_new_bloop_from_dna_at(&mut chunk, Vec::new(), 0.4, 0.4);
+        add_new_bloop_from_dna_at(&mut chunk, Vec::new(), 0.4, 0.6);
     }
+    add_new_plant(&mut chunk, Some(Point{x: 0.5, y: 0.5}), None);
     return chunk
 }
 fn get_dna_from_human_entity_conf(constants: &Constants, human_entity_config: &EntityConfiguration) -> Vec<f64> {
