@@ -69,7 +69,7 @@ const render = () => {
       draw_turbo(canvas_1, x, y, particle.diameter, zoom, center_x, center_y, particle.output)
       draw_body_up(canvas_1, particle.x, particle.y, particle.diameter*0.65, zoom, center_x, center_y)
     } else if (particle.type_ == "Egg") {
-      draw_egg(canvas_1, particle.x, particle.y, particle.diameter, zoom, center_x, center_y)
+      draw_egg(canvas_1, particle.x, particle.y, particle.diameter, zoom, center_x, center_y, particle.age)
     }
   }
   if (document.getElementById('show_outputs').checked) {
@@ -383,8 +383,13 @@ const draw_vision_point = (canvas, p, zoom, center_x, center_y) => {
 const draw_body = (canvas, x, y, diameter, zoom, center_x, center_y) => {
   draw_disk(canvas, x, y, diameter, zoom, center_x, center_y, conf.colors.body)
 }
-const draw_egg = (canvas, x, y, diameter, zoom, center_x, center_y) => {
-  draw_disk(canvas, x, y, diameter, zoom, center_x, center_y, conf.colors.egg)
+const draw_egg = (canvas, x, y, diameter, zoom, center_x, center_y, age) => {
+  let intensity = age / chunk.constants.hatch_egg_age_ticks;
+  let r = 255.0;
+  let g = 255.0 * (1.0 - 0.5 * intensity);
+  let b = 255.0 * (1.0 - 0.5 * intensity);
+  const color = `rgba(${r}, ${g}, ${b})`
+  draw_disk(canvas, x, y, diameter, zoom, center_x, center_y, color)
 }
 const draw_body_up = (canvas, x, y, diameter, zoom, center_x, center_y) => {
   draw_disk(canvas, x, y, diameter, zoom, center_x, center_y, conf.colors.body_up)

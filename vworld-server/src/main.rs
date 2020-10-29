@@ -9,6 +9,7 @@ use crate::particle::ParticleType;
 use crate::particle::add_first_particle;
 use crate::particle::add_second_particle;
 use crate::particle::add_particle;
+use crate::entity::add_new_egg_from_dna_at;
 use crate::vector::Vector;
 use crate::point::Point;
 use crate::entity::add_new_bloop_from_dna_at;
@@ -23,6 +24,7 @@ use crate::compute::ComputeInputData;
 use crate::compute::ComputeOutputData;
 use crate::chunk::Chunk;
 use crate::chunk::Stats;
+use crate::compute::get_direction;
 use crate::entity::Entity;
 use crate::entity::EntityType;
 use crate::entity::get_next_gene;
@@ -82,6 +84,7 @@ struct ParticleClientData {
     direction: Vector,
     energy: f64,
     output: f64,
+    age: u32,
 }
 #[derive(Serialize, Deserialize)]
 struct Data {
@@ -221,7 +224,8 @@ fn main() {
                             type_: p.type_,
                             direction: direction,
                             energy: p.energy,
-                            output: p.output
+                            output: p.output,
+                            age: get_age(&chunk_read, p),
                         });
                     }
                     data
@@ -340,7 +344,59 @@ fn main() {
                 {
                     let mut chunk = chunk_lock_clone.write().unwrap();
                     chunk.real_time_ms = SystemTime::now().duration_since(start_time).unwrap().as_millis();
-                    // Add entities
+                    // Reproduce
+                    let mut euuid_to_reproduce = HashSet::new();
+                    for particle in chunk.particles.values()  {
+                        let euuid = particle.euuid;
+                        match particle.type_ {
+                            ParticleType::Heart => {
+                                if particle.energy >= chunk.constants.reproduce_at_energy {
+                                    euuid_to_reproduce.insert(euuid);
+                                }
+                            },
+                            _ => {}
+                        }
+                    }
+                    struct NewBloop {
+                        x: f64,
+                        y: f64,
+                        dna: Vec<f64>,
+                        lay_egg: bool,
+                    };
+                    let mut new_bloops = Vec::new();
+                    let mut puuid_to_divide_energy = HashSet::new();
+                    let lay_egg_rate = chunk.constants.lay_egg_rate;
+                    for euuid in euuid_to_reproduce {
+                        let entity = chunk.entities.get(&euuid).unwrap();
+                        for puuid in &entity.puuids {
+                            puuid_to_divide_energy.insert(*puuid);
+                            let particle = chunk.particles.get(&puuid).unwrap();
+                            match particle.type_ {
+                                ParticleType::Heart => {
+                                    new_bloops.push(NewBloop {
+                                        // TODO: refactor
+                                        x: particle.x + (get_direction(&chunk, particle).x * particle.diameter).max(0.0).min(1.0),
+                                        y: particle.y + (get_direction(&chunk, particle).y * particle.diameter).max(0.0).min(1.0),
+                                        dna: entity.dna.to_vec(),
+                                        // TODO: refactor
+                                        lay_egg: particle.phase < lay_egg_rate,
+                                    });
+                                },
+                                _ => {}
+                            }
+                        }
+                    }
+                    for puuid in puuid_to_divide_energy {
+                        chunk.particles.get_mut(&puuid).unwrap().energy *= 0.5;
+                    }
+                    for new_bloop in new_bloops {
+                        if new_bloop.lay_egg {
+                            add_new_egg_from_dna_at(&mut chunk, new_bloop.dna, new_bloop.x, new_bloop.y);
+                        } else {
+                            add_new_bloop_from_dna_at(&mut chunk, new_bloop.dna, new_bloop.x, new_bloop.y);
+                        }
+                    }
+                    // Add missing entities
                     let mut entities_by_type: HashMap<EntityType, i32> = HashMap::new();
                     entities_by_type.insert(EntityType::Plant, 0);
                     entities_by_type.insert(EntityType::Bloop, 0);

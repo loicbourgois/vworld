@@ -30,7 +30,8 @@ pub struct Constants {
     pub turbo_max: f64,
     pub hatch_egg_age_ticks: u32,
     pub lay_egg_rate: f64,
-    pub same_position_as_parent: bool,
+    pub keep_min_count_same_position_as_parent: bool,
+    pub reproduce_at_energy: f64,
     // TODO: allow for configuration of particle max frequency
     //pub max_frequency_: f64,
 }

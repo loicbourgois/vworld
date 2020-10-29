@@ -231,10 +231,12 @@ pub fn add_new_bloop(chunk: &mut Chunk) {
                 match p.type_ {
                     ParticleType::Heart => {
                         let direction = compute::get_direction(chunk, p);
-                        if chunk.constants.same_position_as_parent {
+                        if chunk.constants.keep_min_count_same_position_as_parent {
+                            // TODO: refactor
                             x = (p.x + direction.x * p.diameter).max(0.0).min(1.0);
                             y = (p.y + direction.y * p.diameter).max(0.0).min(1.0);
                         }
+                        // TODO: refactor
                         lay_egg = p.phase < chunk.constants.lay_egg_rate;
                         break;
                     },
