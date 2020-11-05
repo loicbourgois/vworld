@@ -55,6 +55,7 @@ struct Configuration {
     gpu_id: usize,
     serialize_unactive_particles: bool,
     update_client_data: bool,
+    show_gpu_supported_features: bool,
 }
 #[derive(Copy, Clone, Serialize, Deserialize)]
 struct Constants {
@@ -120,7 +121,9 @@ fn test_particles() {
     println!("Available devices");
     for (i, physical_device) in physical_devices.clone().enumerate() {
         println!("  {} - {}", i, physical_device.name());
-        // println!("    {:?}", physical_device.supported_features());
+        if configuration.show_gpu_supported_features {
+            println!("    {:?}", physical_device.supported_features());
+        }
     }
     let physical_device_id = configuration.gpu_id;
     let physical_device = physical_devices.collect::<Vec<PhysicalDevice>>()[physical_device_id];
