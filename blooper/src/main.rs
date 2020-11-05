@@ -1,10 +1,9 @@
+#![deny(warnings)]
 mod cs;
 use arrayvec::ArrayVec;
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::env;
-use std::iter;
 use std::mem::size_of;
 use std::net::TcpListener;
 use std::sync::{Arc, RwLock};
@@ -26,12 +25,13 @@ use vulkano::instance::InstanceExtensions;
 use vulkano::instance::PhysicalDevice;
 use vulkano::pipeline::ComputePipeline;
 use vulkano::sync::GpuFuture;
-#[allow(non_camel_case_types)]
-type pid = usize;
-const max_collision: usize = 1024;
-const max_particles_count: usize = 1024 * 64;
-const max_grid_size: usize = 128;
+//#[allow(non_camel_case_types)]
+//type pid = usize;
+const MAX_COLLISION: usize = 1024;
+const MAX_PARTICLES_COUNT: usize = 1024 * 64;
+const MAX_GRID_SIZE: usize = 128;
 #[derive(Clone, Copy)]
+#[allow(dead_code)]
 struct Particle {
     is_active: u32,
     d: f32,
@@ -54,6 +54,7 @@ struct Configuration {
     initial_particle_count: usize,
     gpu_id: usize,
     serialize_unactive_particles: bool,
+    update_client_data: bool,
 }
 #[derive(Copy, Clone, Serialize, Deserialize)]
 struct Constants {
@@ -72,6 +73,7 @@ struct Vec2 {
     x: f32,
     y: f32,
 }
+#[allow(dead_code)]
 struct PushConstants {
     gravity: Vec2,
     i_source: u32,
@@ -98,12 +100,12 @@ struct ClientData {
 #[derive(Copy, Clone)]
 struct CollisionCell {
     count: u32,
-    pids: [u32; max_collision],
+    pids: [u32; MAX_COLLISION],
 }
 
 struct Data {
-    particles: [[Particle; 2]; max_particles_count],
-    collision_grid: [[CollisionCell; max_grid_size]; max_grid_size],
+    particles: [[Particle; 2]; MAX_PARTICLES_COUNT],
+    collision_grid: [[CollisionCell; MAX_GRID_SIZE]; MAX_GRID_SIZE],
 }
 
 fn test_particles() {
@@ -150,9 +152,9 @@ fn test_particles() {
     println!("loaded extensions: {:#?}", device.loaded_extensions());
     let queue = queues.next().unwrap();
     let local_size_x = 64;
-    let work_groups_count: u32 = max_particles_count as u32 / local_size_x;
-    let particles_size = size_of::<[[Particle; 2]; max_particles_count]>();
-    let collision_grid_size = size_of::<[[CollisionCell; max_grid_size]; max_grid_size]>();
+    let work_groups_count: u32 = MAX_PARTICLES_COUNT as u32 / local_size_x;
+    let particles_size = size_of::<[[Particle; 2]; MAX_PARTICLES_COUNT]>();
+    let collision_grid_size = size_of::<[[CollisionCell; MAX_GRID_SIZE]; MAX_GRID_SIZE]>();
     let stack_size = particles_size * 4 + collision_grid_size * 4 + 100_000;
     println!("size: {}", stack_size);
     let thread_builder = thread::Builder::new();
@@ -167,9 +169,9 @@ fn test_particles() {
                     * configuration.multiplier,
                 ..configuration.constants
             };
-            let particles: [[Particle; 2]; max_particles_count] = get_random_particles(
+            let particles: [[Particle; 2]; MAX_PARTICLES_COUNT] = get_random_particles(
                 &configuration,
-                max_particles_count,
+                MAX_PARTICLES_COUNT,
                 configuration.initial_max_speed_per_s,
             )
             .into_iter()
@@ -178,10 +180,10 @@ fn test_particles() {
             .unwrap_or_else(|_| unreachable!());
             let collision_cell = CollisionCell {
                 count: 0,
-                pids: [0; max_collision],
+                pids: [0; MAX_COLLISION],
             };
-            let collision_grid: [[CollisionCell; max_grid_size]; max_grid_size] =
-                [[collision_cell; max_grid_size]; max_grid_size];
+            let collision_grid: [[CollisionCell; MAX_GRID_SIZE]; MAX_GRID_SIZE] =
+                [[collision_cell; MAX_GRID_SIZE]; MAX_GRID_SIZE];
             let data = Data {
                 particles: particles,
                 collision_grid: collision_grid,
@@ -280,13 +282,13 @@ fn test_particles() {
                         .unwrap();
                 }
                 tick += 1;
-                //}
                 // write client data
-                if tick % 1 == 0 {
+                if configuration.update_client_data {
                     let buffer_read = buffer.read().unwrap();
                     let mut particles_client: Vec<ParticleClientData> = Vec::new();
                     for p in buffer_read.particles.iter() {
-                        if p[i_target].is_active == 1 || configuration.serialize_unactive_particles {
+                        if p[i_target].is_active == 1 || configuration.serialize_unactive_particles
+                        {
                             particles_client.push(ParticleClientData {
                                 x: p[i_target].x,
                                 y: p[i_target].y,
@@ -309,7 +311,7 @@ fn test_particles() {
                         .unwrap()
                         .as_millis(),
                 );
-                for i in 100..durations.len() {
+                for _ in 100..durations.len() {
                     durations.remove(0);
                 }
                 if tick % 100 == 0 {
@@ -356,7 +358,6 @@ fn get_random_particles(
             grid_y: ((y / constants.height * constants.grid_size as f32).abs() as u32)
                 .max(0)
                 .min(constants.grid_size - 1),
-            //collision_pids: [0; max_collision],
             collisions_count: 0,
             d: constants.default_diameter,
             mass: constants.default_mass,
@@ -428,21 +429,7 @@ fn handle_websocket(
                 loop {
                     match websocket.read_message() {
                         Ok(message) => {
-                            println!("message: {}", message);
-                            /*if message == tungstenite::Message::Text("use_distance_traveled_as_fitness_function".to_string()) {
-                                {
-                                    let mut chunk = chunk_lock_clone.write().unwrap();
-                                    chunk.constants.use_distance_traveled_as_fitness_function = true;
-                                }
-                            } else if message == tungstenite::Message::Text("use_distance_traveled_as_fitness_function_false".to_string()) {
-                                {
-                                    let mut chunk = chunk_lock_clone.write().unwrap();
-                                    chunk.constants.use_distance_traveled_as_fitness_function = false;
-                                }
-                            } else*/
-                            {
-                                println!("message not handled: {}", message);
-                            }
+                            println!("message not handled: {}", message);
                         }
                         Err(error) => {
                             println!("error: {}", error);

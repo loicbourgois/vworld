@@ -19,5 +19,6 @@
   "multiplier": 1.0,
   "port": 10001,
   "address": "127.0.0.1",
-  "initial_particle_count": 10000
+  "initial_particle_count": 10000,
+  "update_client_data": true
 }
