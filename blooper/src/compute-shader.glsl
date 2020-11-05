@@ -11,7 +11,6 @@ struct Particle {
   uint grid_x;
   uint grid_y;
   uint collisions_count;
-  // uint collision_pids [1024];
 };
 #define max_collision 1024
 #define max_particles_count 1024*64

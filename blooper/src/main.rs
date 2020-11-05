@@ -53,7 +53,7 @@ struct Configuration {
     address: String,
     initial_particle_count: usize,
     gpu_id: usize,
-    ser_unactive_particles: bool,
+    serialize_unactive_particles: bool,
 }
 #[derive(Copy, Clone, Serialize, Deserialize)]
 struct Constants {
@@ -286,7 +286,7 @@ fn test_particles() {
                     let buffer_read = buffer.read().unwrap();
                     let mut particles_client: Vec<ParticleClientData> = Vec::new();
                     for p in buffer_read.particles.iter() {
-                        if p[i_target].is_active == 1 || configuration.ser_unactive_particles {
+                        if p[i_target].is_active == 1 || configuration.serialize_unactive_particles {
                             particles_client.push(ParticleClientData {
                                 x: p[i_target].x,
                                 y: p[i_target].y,

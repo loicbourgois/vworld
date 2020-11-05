@@ -13,7 +13,7 @@
       "y": 0.0
     }
   },
-  "ser_unactive_particles": false,
+  "serialize_unactive_particles": false,
   "gpu_id": 0,
   "initial_max_speed_per_s": 0.0,
   "multiplier": 1.0,
