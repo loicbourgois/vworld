@@ -1,5 +1,6 @@
 'use strict';
 const conf = {
+  'draw_inactive': false,
   'colors': {
     'health': '#8fa',
     'body':   '#8cf',
@@ -117,7 +118,7 @@ const log = (message) => {
 }
 const setup_socket_pair = (socket_pair) => {
   socket_pair.reader.addEventListener('open', function (event) {
-      socket_pair.reader.send('Hello Server!')
+      socket_pair.reader.send('server_to_client')
       log(`[reader] connected: ${socket_pair.reader.url}`)
       start_render_loop()
       window.onbeforeunload = function() {
