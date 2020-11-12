@@ -6,6 +6,13 @@ const render = () => {
   if (!chunk.tick) {
     return
   }
+  document.getElementById('step').innerHTML = chunk.tick;
+  document.getElementById('tick_duration').innerHTML = `${(chunk.average_duration / 1000.0).toFixed(2)}ms`;
+  document.getElementById('momentum_x').innerHTML = chunk.momentum.x ? chunk.momentum.x.toFixed(8) : "00";
+  document.getElementById('momentum_y').innerHTML = chunk.momentum.y ? chunk.momentum.y.toFixed(8) : "00";
+  document.getElementById('absolute_momentum_x').innerHTML = chunk.absolute_momentum.x ? chunk.absolute_momentum.x.toFixed(8) : "00";
+  document.getElementById('absolute_momentum_y').innerHTML = chunk.absolute_momentum.y ? chunk.absolute_momentum.y.toFixed(8) : "00";
+  document.getElementById('kinetic_energy').innerHTML = chunk.kinetic_energy ? chunk.kinetic_energy.toFixed(8) : "00";
   // fps
   last_render_time_ms = now_ms
   now_ms = Date.now()
@@ -19,17 +26,16 @@ const render = () => {
     fps_sum += fps_list[i]
   }
   const fps = fps_sum / fps_list.length;
-
+  document.getElementById('fps').innerHTML = fps.toFixed(2);
+  //
   context_1.clearRect(0, 0, canvas_1.width, canvas_1.height)
   context_2.clearRect(0, 0, canvas_2.width, canvas_2.height)
   for (let particle_id in chunk.particles) {
     const particle = chunk.particles[particle_id]
     if (particle.a) {
-      const x = particle.x / chunk.constants.width;
-      const y = particle.y / chunk.constants.height;
-      const d = particle.d / chunk.constants.width;
       //draw_body(canvas_1, x, y, d, zoom, center_x, center_y)
-      draw_inactive(canvas_1, x, y, d, zoom, center_x, center_y)
+      //draw_inactive(canvas_1, x, y, d, zoom, center_x, center_y)
+      draw_particle(particle, chunk, canvas_1, zoom, center_x, center_y);
       //draw_body(canvas_2, x, y, d, 1.0, 0.5, 0.5)
     } else {
       if (conf.draw_inactive) {
@@ -40,234 +46,19 @@ const render = () => {
       }
     }
   }
-
-  return;
-  //
-  // OLD
-  //
-  const simulation_time_s = (chunk.step * chunk.constants.delta_time)
-  const real_time_s = (chunk.real_time_ms / 1000)
-  const simulation_speed = simulation_time_s / real_time_s
-  context_1.clearRect(0, 0, canvas_1.width, canvas_1.height)
-  context_2.clearRect(0, 0, canvas_2.width, canvas_2.height)
-  if (document.getElementById('show_line_of_sight').checked) {
-    for (let particle_id in chunk.particles) {
-      const particle = chunk.particles[particle_id]
-      if (particle.type_ == "Eye") {
-        const x = particle.x + particle.direction.x * chunk.constants.eye_sight_length;
-        const y = particle.y + particle.direction.y * chunk.constants.eye_sight_length;
-        draw_dotted_line(particle.x, particle.y, x, y, zoom, conf.colors.line_of_sight)
-      }
-    }
-  }
-  if (document.getElementById('show_vision').checked) {
-    for (let point_id in chunk.vision_data) {
-        const p = chunk.vision_data[point_id].origin
-        const p2 = chunk.vision_data[point_id].target
-        draw_line(p.x, p.y, p2.x, p2.y, zoom, conf.colors.line_of_sight)
-    }
-  }
-  for (let particle_id in chunk.particles) {
-    const particle = chunk.particles[particle_id]
-    if (particle.type_ == "Plant") {
-      draw_plant(canvas_1, particle.x, particle.y, particle.diameter, zoom, center_x, center_y, particle.color)
-      draw_plant(canvas_2, particle.x, particle.y, particle.diameter, 1.0, 0.5, 0.5, particle.color)
-    } else {
-      draw_body(canvas_1, particle.x, particle.y, particle.diameter, zoom, center_x, center_y)
-      draw_body(canvas_2, particle.x, particle.y, particle.diameter, 1.0, 0.5, 0.5)
-    }
-  }
-  for (let particle_id in chunk.particles) {
-    const particle = chunk.particles[particle_id]
-    if (particle.type_ == "Eye") {
-      const x = particle.x + particle.direction.x * particle.diameter * 0.3;
-      const y = particle.y + particle.direction.y * particle.diameter * 0.3;
-      draw_eye(canvas_1, x, y, particle.diameter, zoom, center_x, center_y, particle.output)
-      draw_body_up(canvas_1, particle.x, particle.y, particle.diameter*0.65, zoom, center_x, center_y)
-    } else if (particle.type_ == "Mouth") {
-      let x = particle.x + particle.direction.x * particle.diameter * 0.35;
-      let y = particle.y + particle.direction.y * particle.diameter * 0.35;
-      draw_mouth(canvas_1, x, y, particle.diameter, zoom, center_x, center_y, particle.output)
-      draw_body_up(canvas_1, particle.x, particle.y, particle.diameter*0.65, zoom, center_x, center_y)
-    } else if (particle.type_ == "Turbo") {
-      const x = particle.x + particle.direction.x * particle.diameter * 0.3;
-      const y = particle.y + particle.direction.y * particle.diameter * 0.3;
-      draw_turbo(canvas_1, x, y, particle.diameter, zoom, center_x, center_y, particle.output)
-      draw_body_up(canvas_1, particle.x, particle.y, particle.diameter*0.65, zoom, center_x, center_y)
-    } else if (particle.type_ == "Egg") {
-      draw_egg(canvas_1, particle.x, particle.y, particle.diameter, zoom, center_x, center_y)
-    }
-  }
-  if (document.getElementById('show_outputs').checked) {
-    for (let particle_id in chunk.particles) {
-      const particle = chunk.particles[particle_id]
-      if (particle.type_ == "Plant") {
-        // Do nothing
-      } else {
-        draw_output(canvas_1, particle.x, particle.y, particle.diameter, zoom, center_x, center_y, particle.output)
-      }
-    }
-  }
-  if (document.getElementById('show_health').checked) {
-    for (let particle_id in chunk.particles) {
-      const particle = chunk.particles[particle_id]
-      if (particle.type_ == "Plant") {
-        // Do nothing
-      } else {
-        draw_energy(canvas_1, particle.x, particle.y, particle.diameter, zoom, center_x, center_y, particle.energy * conf.health_diameter_ratio)
-      }
-    }
-  }
-  if (document.getElementById('show_points_of_sight').checked) {
-    for (let point_id in chunk.vision_data) {
-        const p = chunk.vision_data[point_id].target
-        draw_vision_point(canvas_1, p, zoom, center_x, center_y)
-    }
-  }
-  document.getElementById('fps').innerHTML = fps.toFixed(2);
-  document.getElementById('step').innerHTML = chunk.step;
-  document.getElementById('simulation_time').innerHTML = tohhmmss(simulation_time_s);
-  document.getElementById('real_time').innerHTML = tohhmmss(real_time_s);
-  document.getElementById('simulation_speed').innerHTML = simulation_speed.toFixed(5);
-  document.getElementById('simulation_current_speed').innerHTML = chunk.stats[chunk.stats.length-1].simulation_speed.toFixed(5);
-  document.getElementById('distance_traveled_as_fitness_function').checked = chunk.constants.use_distance_traveled_as_fitness_function
-  const left = canvas_2.width * (center_x  - 0.5 / zoom)
-  const top = canvas_2.height * (center_y - 0.5  / zoom)
-  const width = canvas_2.width / zoom
-  const height = canvas_2.height / zoom
-  context_2.strokeStyle = '#fff'
-  context_2.beginPath();
-  context_2.rect(left, top, width, height);
-  context_2.stroke();
-  context_3.clearRect(0, 0, canvas_3.width, canvas_3.height)
-  context_4.clearRect(0, 0, canvas_4.width, canvas_4.height)
-  render_stats_age();
-  render_stats_distance();
-  return;
-
-
-
-
-  //
-  // Old
-  //
-
-
-
-
-
-  document.getElementById('particles_count').innerHTML = chunk.particles_count;
-  document.getElementById('entities_count').innerHTML = chunk.entities_count;
-  document.getElementById('links_count').innerHTML = chunk.links_count;
-  document.getElementById('total_energy').innerHTML = chunk.total_energy;
-
-  context_1.clearRect(0, 0, canvas_1.width, canvas_1.height)
-  context_2.clearRect(0, 0, canvas_2.width, canvas_2.height)
-  context_3.clearRect(0, 0, canvas_3.width, canvas_3.height)
-  context_4.clearRect(0, 0, canvas_4.width, canvas_4.height)
-
-  if (document.getElementById('show_travel_line').checked) {
-    for (let euuid in chunk.entities) {
-      const entity = chunk.entities[euuid]
-      draw_line(entity.x_start, entity.y_start, entity.x, entity.y, zoom, conf.colors.travel)
-    }
-  }
-
-  for (let particle_id in chunk.particles) {
-    const particle = chunk.particles[particle_id]
-    if (particle.type_ == "Plant") {
-      draw_plant(canvas_1, particle.x, particle.y, particle.diameter, zoom, center_x, center_y, particle.data.PlantData.color)
-      draw_plant(canvas_2, particle.x, particle.y, particle.diameter, 1.0, 0.5, 0.5, particle.data.PlantData.color)
-    } else {
-      draw_body(canvas_1, particle.x, particle.y, particle.diameter, zoom, center_x, center_y)
-      draw_body(canvas_2, particle.x, particle.y, particle.diameter, 1.0, 0.5, 0.5)
-    }
-  }
-  for (let particle_id in chunk.particles) {
-    const particle = chunk.particles[particle_id]
-    if (particle.type_ == "Mouth") {
-      try {
-        let x = particle.x + particle.data.MouthData.direction.x * particle.diameter * 0.35;
-        let y = particle.y + particle.data.MouthData.direction.y * particle.diameter * 0.35;
-        if (Math.abs(particle.data.MouthData.direction.x) < 0.1 && Math.abs(particle.data.MouthData.direction.y)  < 0.1)
-        {
-          x = particle.x + 0.0 * particle.diameter * 0.35;
-           y = particle.y - 1.0 * particle.diameter * 0.35;
-        }
-        draw_mouth(canvas_1, x, y, particle.diameter, zoom, center_x, center_y)
-      } catch (error) {
-
-      }
-    }
-  }
-  for (let particle_id in chunk.particles) {
-    const particle = chunk.particles[particle_id]
-    if (particle.type_ == "Plant") {
-      // Do nothing
-    } else {
-      draw_body(canvas_1, particle.x, particle.y, particle.diameter*0.75, zoom, center_x, center_y)
-    }
-  }
-  for (let particle_id in chunk.particles) {
-    const particle = chunk.particles[particle_id]
-    if (particle.type_ == "Eye") {
-      try {
-        const x = particle.x + particle.data.EyeData.direction.x * particle.diameter * 0.3;
-        const y = particle.y + particle.data.EyeData.direction.y * particle.diameter * 0.3;
-        draw_eye(canvas_1, x, y, particle.diameter, zoom, center_x, center_y)
-      } catch (error) {
-
-      }
-    }
-  }
-  for (let particle_id in chunk.particles) {
-    const particle = chunk.particles[particle_id]
-    if (particle.type_ == "Plant") {
-      // Do nothing
-    } else {
-      draw_body(canvas_1, particle.x, particle.y, particle.diameter*0.65, zoom, center_x, center_y)
-    }
-  }
-  if (document.getElementById('show_outputs').checked) {
-    for (let particle_id in chunk.particles) {
-      const particle = chunk.particles[particle_id]
-      if (particle.type_ == "Plant") {
-        // Do nothing
-      } else {
-        draw_output(canvas_1, particle.x, particle.y, particle.diameter, zoom, center_x, center_y, particle.output)
-      }
-    }
-  }
-  if (document.getElementById('show_health').checked) {
-    for (let particle_id in chunk.particles) {
-      const particle = chunk.particles[particle_id]
-      if (particle.type_ == "Plant") {
-        // Do nothing
-      } else {
-        draw_energy(canvas_1, particle.x, particle.y, particle.diameter, zoom, center_x, center_y, particle.energy * 0.8)
-      }
-    }
-  }
-
-  if (document.getElementById('show_health_big').checked) {
-    for (let particle_id in chunk.particles) {
-      const particle = chunk.particles[particle_id]
-      if (particle.type_ == "Plant") {
-        // Do nothing
-      } else {
-        draw_energy(canvas_1, particle.x, particle.y, particle.diameter, zoom, center_x, center_y, particle.energy)
-      }
-    }
-  }
-  if (document.getElementById('show_links').checked) {
-    for (let link_id in chunk.links) {
-      const link = chunk.links[link_id]
-      const p1 = chunk.particles[link.puuids_str[0]]
-      const p2 = chunk.particles[link.puuids_str[1]]
-      draw_link(p1.x, p1.y, p2.x, p2.y, zoom)
-    }
-  }
 }
+const draw_particle = (p, chunk, canvas, zoom, center_x, center_y) => {
+  const x = p.x / chunk.constants.width;
+  const y = p.y / chunk.constants.height;
+  const d = p.d / chunk.constants.width;
+  const pdid_str = chunk.pdid_to_string[p.pdid];
+  const c = conf.colors[pdid_str];
+  if (!c) {
+    log_x_time(`no color for ${pdid_str}`);
+  }
+  draw_disk(canvas, x, y, d, zoom, center_x, center_y, `rgba(${c.r*255.0}, ${c.g*255.0}, ${c.b*255.0}, 0.5)`)
+}
+
 const render_stats_distance = () => {
   let l = chunk.stats.length;
   let max_distance = chunk.best_dna_ever_by_distance_traveled.distance_traveled;

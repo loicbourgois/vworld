@@ -4,7 +4,7 @@
 
 ```bash
 export vworld_root_folder=$HOME/github/vworld
-$vworld_root_folder/scripts/blooper.sh
+config=demo $vworld_root_folder/scripts/blooper.sh
 
 configuration_name="demo" $vworld_root_folder/scripts/vworld-server-start.sh
 

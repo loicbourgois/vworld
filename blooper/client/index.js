@@ -2,6 +2,41 @@
 const conf = {
   'draw_inactive': false,
   'colors': {
+    'energy': {
+      'r': 1.0,
+      'g': 1.0,
+      'b': 0.0
+    },
+    'rock': {
+      'r': 0.5,
+      'g': 0.3,
+      'b': 0.1
+    },
+    'matter': {
+      'r': 0.0,
+      'g': 0.9,
+      'b': 0.2
+    },
+    'organic_matter': {
+      'r': 0.0,
+      'g': 0.9,
+      'b': 0.9
+    },
+    'waste': {
+      'r': 0.8,
+      'g': 0.8,
+      'b': 0.8
+    },
+    'metal': {
+      'r': 1.0,
+      'g': 1.0,
+      'b': 0.7
+    },
+    'thruster': {
+      'r': 1.0,
+      'g': 0.7,
+      'b': 0.0
+    },
     'health': '#8fa',
     'body':   '#8cf',
     'egg':    '#faa',
