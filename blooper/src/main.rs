@@ -1,18 +1,33 @@
 #![deny(warnings)]
+mod configuration;
 mod cs;
-use arrayvec::ArrayVec;
-use rand::prelude::*;
+mod data;
+mod particle;
+mod point;
+mod server;
+mod vector;
+use crate::configuration::Configuration;
+use crate::data::activate_particle;
+use crate::data::create_default_particle;
+use crate::data::create_link;
+use crate::data::deactivate_particle;
+use crate::data::load_data;
+use crate::data::update_grid_coord;
+use crate::data::CollisionResponseDefinitionInternal;
+use crate::data::Link;
+use crate::particle::pdid;
+use crate::particle::pid;
+use crate::particle::ParticleDefinition;
+use crate::vector::Vector;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::env;
 use std::mem::size_of;
-use std::net::TcpListener;
 use std::sync::{Arc, RwLock};
 use std::thread;
-use std::time::Duration;
+//use std::time::Duration;
 use std::time::SystemTime;
-use tungstenite::accept;
-use vulkano::buffer::BufferUsage;
-use vulkano::buffer::CpuAccessibleBuffer;
 use vulkano::command_buffer::AutoCommandBufferBuilder;
 use vulkano::command_buffer::CommandBuffer;
 use vulkano::descriptor::descriptor_set::PersistentDescriptorSet;
@@ -27,52 +42,54 @@ use vulkano::pipeline::ComputePipeline;
 use vulkano::sync::GpuFuture;
 //#[allow(non_camel_case_types)]
 //type pid = usize;
-const MAX_COLLISION: usize = 1024;
+const MAX_COLLISION_PER_PARTICLE: usize = 64;
+const MAX_COLLISION_TO_CHECK: usize = 1024;
 const MAX_PARTICLES_COUNT: usize = 1024 * 64;
 const MAX_GRID_SIZE: usize = 128;
+const MAX_LINK_PER_PARTICLE: usize = 32;
+const PADDER_COUNT: usize = 2;
+const MAX_PARTICLE_DEFINITIONS: usize = 64;
 #[derive(Clone, Copy)]
-#[allow(dead_code)]
-struct Particle {
-    is_active: u32,
-    d: f32,
-    x: f32,
-    y: f32,
-    x_before: f32,
-    y_before: f32,
-    mass: f32,
-    grid_x: u32,
-    grid_y: u32,
-    collisions_count: u32,
-}
-#[derive(Clone, Serialize, Deserialize)]
-struct Configuration {
-    constants: Constants,
-    initial_max_speed_per_s: f32,
-    multiplier: f32,
-    port: u32,
-    address: String,
-    initial_particle_count: usize,
-    gpu_id: usize,
-    serialize_unactive_particles: bool,
-    update_client_data: bool,
-    show_gpu_supported_features: bool,
+//#[allow(dead_code)]
+//#[repr(align(1))]
+pub struct GpuParticle {
+    pub velocity_x: f32,
+    pub velocity_y: f32,
+    pub momentum_x: f32,
+    pub momentum_y: f32,
+    pub linked_pids: [u32; MAX_LINK_PER_PARTICLE],
+    pub link_count: u32,
+    pub is_active: u32,
+    pub d: f32,
+    pub x: f32,
+    pub y: f32,
+    pub x_before: f32,
+    pub y_before: f32,
+    pub mass: f32,
+    pub kinetic_energy: f32,
+    pub grid_x: u32,
+    pub grid_y: u32,
+    pub collisions_count: u32,
+    pub collision_pids: [u32; MAX_COLLISION_PER_PARTICLE],
+    pub padder: [u32; PADDER_COUNT],
+    //pub pdid: u32,
 }
 #[derive(Copy, Clone, Serialize, Deserialize)]
-struct Constants {
-    width: f32,
-    height: f32,
-    delta_time_s: f32,
-    grid_size: u32,
-    default_diameter: f32,
-    world_size: f32,
-    collision_push_rate: f32,
-    default_mass: f32,
-    gravity: Vec2,
+pub struct Constants {
+    pub width: f32,
+    pub height: f32,
+    pub delta_time_s: f32,
+    pub grid_size: u32,
+    pub default_diameter: f32,
+    pub world_size: f32,
+    pub collision_push_rate: f32,
+    pub default_mass: f32,
+    pub gravity: Vec2,
 }
 #[derive(Copy, Clone, Serialize, Deserialize)]
-struct Vec2 {
-    x: f32,
-    y: f32,
+pub struct Vec2 {
+    pub x: f32,
+    pub y: f32,
 }
 #[allow(dead_code)]
 struct PushConstants {
@@ -91,25 +108,26 @@ struct ParticleClientData {
     y: f32,
     d: f32,
     a: bool,
+    pdid: pdid,
 }
 #[derive(Serialize, Deserialize)]
 struct ClientData {
     particles: Vec<ParticleClientData>,
     constants: Constants,
     tick: usize,
+    momentum: Vec2,
+    kinetic_energy: f32,
+    absolute_momentum: Vec2,
+    average_duration: u128,
+    particle_definitions: HashMap<String, ParticleDefinition>,
+    pdid_to_string: HashMap<pdid, String>,
 }
 #[derive(Copy, Clone)]
-struct CollisionCell {
-    count: u32,
-    pids: [u32; MAX_COLLISION],
+pub struct CollisionCell {
+    pub count: u32,
+    pub pids: [u32; MAX_COLLISION_TO_CHECK],
 }
-
-struct Data {
-    particles: [[Particle; 2]; MAX_PARTICLES_COUNT],
-    collision_grid: [[CollisionCell; MAX_GRID_SIZE]; MAX_GRID_SIZE],
-}
-
-fn test_particles() {
+fn main() {
     println!("Blooper");
     let configuration_str: String = env::var("blooper_configuration")
         .unwrap()
@@ -154,11 +172,12 @@ fn test_particles() {
     };
     println!("loaded extensions: {:#?}", device.loaded_extensions());
     let queue = queues.next().unwrap();
+    // todo: const
     let local_size_x = 64;
     let work_groups_count: u32 = MAX_PARTICLES_COUNT as u32 / local_size_x;
-    let particles_size = size_of::<[[Particle; 2]; MAX_PARTICLES_COUNT]>();
+    let particles_size = size_of::<[[GpuParticle; 2]; MAX_PARTICLES_COUNT]>();
     let collision_grid_size = size_of::<[[CollisionCell; MAX_GRID_SIZE]; MAX_GRID_SIZE]>();
-    let stack_size = particles_size * 4 + collision_grid_size * 4 + 100_000;
+    let stack_size = particles_size * 8 + collision_grid_size * 4 + 100_000;
     println!("size: {}", stack_size);
     let thread_builder = thread::Builder::new();
     let handler = thread_builder
@@ -172,33 +191,7 @@ fn test_particles() {
                     * configuration.multiplier,
                 ..configuration.constants
             };
-            let particles: [[Particle; 2]; MAX_PARTICLES_COUNT] = get_random_particles(
-                &configuration,
-                MAX_PARTICLES_COUNT,
-                configuration.initial_max_speed_per_s,
-            )
-            .into_iter()
-            .collect::<ArrayVec<_>>()
-            .into_inner()
-            .unwrap_or_else(|_| unreachable!());
-            let collision_cell = CollisionCell {
-                count: 0,
-                pids: [0; MAX_COLLISION],
-            };
-            let collision_grid: [[CollisionCell; MAX_GRID_SIZE]; MAX_GRID_SIZE] =
-                [[collision_cell; MAX_GRID_SIZE]; MAX_GRID_SIZE];
-            let data = Data {
-                particles: particles,
-                collision_grid: collision_grid,
-            };
-            let host_cached = false;
-            let buffer = CpuAccessibleBuffer::from_data(
-                device.clone(),
-                BufferUsage::all(),
-                host_cached,
-                data,
-            )
-            .expect("failed to create buffer");
+            let mut data = load_data(&configuration, device.clone());
             let shader = cs::Shader::load(device.clone()).expect("failed to create shader module");
             let compute_pipeline = Arc::new(
                 ComputePipeline::new(device.clone(), &shader.main_entry_point(), &())
@@ -207,7 +200,7 @@ fn test_particles() {
             let layout = compute_pipeline.layout().descriptor_set_layout(0).unwrap();
             let set = Arc::new(
                 PersistentDescriptorSet::start(layout.clone())
-                    .add_buffer(buffer.clone())
+                    .add_buffer(data.gpu_buffer.clone())
                     .unwrap()
                     .build()
                     .unwrap(),
@@ -222,40 +215,75 @@ fn test_particles() {
                 let client_data_lock_clone = Arc::clone(&client_data_lock);
                 let configuration_clone = configuration.clone();
                 thread::spawn(move || {
-                    handle_websocket(client_data_lock_clone, configuration_clone);
+                    server::handle_websocket(client_data_lock_clone, configuration_clone);
                 });
             }
             let client_data_lock_clone = Arc::clone(&client_data_lock);
             let mut durations: Vec<u128> = Vec::new();
+            let mut durations_fix_nan: Vec<u128> = Vec::new();
+            let mut durations_collision_grid: Vec<u128> = Vec::new();
+            let mut durations_gpu_compute: Vec<u128> = Vec::new();
+            let mut durations_collision_response: Vec<u128> = Vec::new();
+            let mut durations_client_data: Vec<u128> = Vec::new();
             loop {
                 let start_time = SystemTime::now();
                 let i_source: usize = tick % 2;
                 let i_target: usize = (i_source as usize + 1) % 2;
-                // write
-
+                //
+                if data.active_particles.len() < data.configuration.min_particle_count {
+                    create_default_particle(&mut data);
+                }
+                // fix nan
                 {
-                    let mut buffer_write = buffer.write().unwrap();
+                    let start_time_fix_nan = SystemTime::now();
+                    let mut particles_to_deactivate: HashSet<pid> = HashSet::new();
+                    {
+                        let gpu_buffer_read = data.gpu_buffer.read().unwrap();
+                        for pid in data.active_particles.keys() {
+                            let p_gpu = gpu_buffer_read.particles[*pid];
+                            if !p_gpu[i_source].x.is_finite() || !p_gpu[i_source].y.is_finite() {
+                                particles_to_deactivate.insert(*pid);
+                            }
+                        }
+                    }
+                    for pid in particles_to_deactivate {
+                        deactivate_particle(&mut data, pid);
+                        println!("fix nan for {}", pid);
+                    }
+                    match SystemTime::now().duration_since(start_time_fix_nan) {
+                        Ok(t) => durations_fix_nan.push(t.as_micros()),
+                        Err(_) => println!("error getting elapsed time"),
+                    }
+                }
+                // collision grid
+                {
+                    let start_time_collisison_grid = SystemTime::now();
+                    let mut buffer_write = data.gpu_buffer.write().unwrap();
                     for i in 0..constants.grid_size as usize {
                         for j in 0..constants.grid_size as usize {
                             buffer_write.collision_grid[i][j].count = 0;
                         }
                     }
-                    let l = buffer_write.particles.len();
-                    for pid in 0..l {
-                        let p = buffer_write.particles[pid][i_source];
-                        if p.is_active == 0 {
-                            continue;
-                        }
+                    for pid in data.active_particles.keys() {
+                        let p = buffer_write.particles[*pid][i_source];
                         let i = p.grid_x as usize;
                         let j = p.grid_y as usize;
                         let c = { buffer_write.collision_grid[i][j].count as usize };
-                        buffer_write.collision_grid[i][j].pids[c] = pid as u32;
+                        if c < MAX_COLLISION_TO_CHECK {
+                            buffer_write.collision_grid[i][j].pids[c] = *pid as u32;
+                        } else {
+                            //
+                        }
                         buffer_write.collision_grid[i][j].count += 1;
                     }
+                    match SystemTime::now().duration_since(start_time_collisison_grid) {
+                        Ok(t) => durations_collision_grid.push(t.as_micros()),
+                        Err(_) => println!("error getting elapsed time"),
+                    }
                 }
-                //for _ in 0..3 {
                 // gpu compute
                 {
+                    let start_time_gpu_compute = SystemTime::now();
                     let push_constants = PushConstants {
                         i_source: i_source as u32,
                         i_target: i_target as u32,
@@ -283,20 +311,231 @@ fn test_particles() {
                         .unwrap()
                         .wait(None)
                         .unwrap();
+
+                    match SystemTime::now().duration_since(start_time_gpu_compute) {
+                        Ok(t) => durations_gpu_compute.push(t.as_micros()),
+                        Err(_) => println!("error getting elapsed time"),
+                    }
                 }
+                // collision response
+                let start_time_collision_response = SystemTime::now();
+                struct ParticleConfigurationVerlet {
+                    pub pdid: pdid,
+                    pub x: f32,
+                    pub y: f32,
+                    pub x_before: f32,
+                    pub y_before: f32,
+                }
+                let mut particles_to_create = Vec::new();
+                let mut particles_to_deactivate: HashSet<pid> = HashSet::new();
+                let mut links_to_create: HashMap<(pid, pid), Link> = HashMap::new();
+                {
+                    let mut buffer_write = data.gpu_buffer.write().unwrap();
+                    for pid_a in data.active_particles.keys() {
+                        let pa = data.active_particles.get(pid_a).unwrap();
+                        let mut c = buffer_write.particles[*pid_a][i_source].collisions_count;
+                        if c > MAX_COLLISION_PER_PARTICLE as u32 {
+                            c = MAX_COLLISION_PER_PARTICLE as u32;
+                        }
+                        for i in 0..c {
+                            let pas = &buffer_write.particles[*pid_a][i_source];
+                            let pid_b = pas.collision_pids[i as usize] as usize;
+                            match data.active_particles.get(&pid_b) {
+                                Some(pb) => {
+                                    let pbs = &buffer_write.particles[pid_b][i_source];
+                                    match data
+                                        .collision_response_definitions
+                                        .get(&(pa.pdid, pb.pdid))
+                                    {
+                                        Some(crd_) => match crd_ {
+                                            CollisionResponseDefinitionInternal::Transform(
+                                                crdi,
+                                            ) => match crdi.pdids.len() {
+                                                1 => {
+                                                    particles_to_deactivate.insert(*pid_a);
+                                                    particles_to_deactivate.insert(pid_b);
+                                                    let x = (pas.x + pbs.x) * 0.5;
+                                                    let y = (pas.y + pbs.y) * 0.5;
+                                                    particles_to_create.push(
+                                                        ParticleConfigurationVerlet {
+                                                            pdid: crdi.pdids[0],
+                                                            x: x,
+                                                            y: y,
+                                                            x_before: x,
+                                                            y_before: y,
+                                                        },
+                                                    );
+                                                    // caution
+                                                    break;
+                                                }
+                                                2 => {
+                                                    particles_to_deactivate.insert(*pid_a);
+                                                    particles_to_deactivate.insert(pid_b);
+                                                    particles_to_create.push(
+                                                        ParticleConfigurationVerlet {
+                                                            pdid: crdi.pdids[0],
+                                                            x: pas.x,
+                                                            y: pas.y,
+                                                            x_before: pas.x_before,
+                                                            y_before: pas.y_before,
+                                                        },
+                                                    );
+                                                    particles_to_create.push(
+                                                        ParticleConfigurationVerlet {
+                                                            pdid: crdi.pdids[1],
+                                                            x: pbs.x,
+                                                            y: pbs.y,
+                                                            x_before: pbs.x_before,
+                                                            y_before: pbs.y_before,
+                                                        },
+                                                    );
+                                                    // caution
+                                                    // avoid transforming a particle twice, but could have sides effect
+                                                    // also, only works for low pid
+                                                    // pid_b can be Transformed multiple times
+                                                    break;
+                                                }
+                                                n => println!(
+                                                    "Transform not supported for {} output",
+                                                    n
+                                                ),
+                                            },
+                                            CollisionResponseDefinitionInternal::Link(
+                                                crdi_link,
+                                            ) => {
+                                                match data.links.get(&(pa.pid, pb.pid)) {
+                                                    Some(_) => {
+                                                        // do nothing
+                                                    }
+                                                    None => {
+                                                        links_to_create.insert(
+                                                            (pa.pid, pb.pid),
+                                                            Link {
+                                                                strength: crdi_link.strength,
+                                                            },
+                                                        );
+                                                        // caution
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        None => {
+                                            let v = Vector::new_2(pas.x, pas.y, pbs.x, pbs.y);
+                                            let distance_centers = v.length();
+                                            let radiuses = (pas.d * 0.5) + (pbs.d * 0.5);
+                                            let delta = radiuses - distance_centers;
+                                            let delta_vector = v.normalized().multiplied(delta);
+                                            buffer_write.particles[*pid_a][i_target].x -=
+                                                delta_vector.x * constants.collision_push_rate;
+                                            buffer_write.particles[*pid_a][i_target].y -=
+                                                delta_vector.y * constants.collision_push_rate;
+                                            buffer_write.particles[pid_b][i_target].x +=
+                                                delta_vector.x * constants.collision_push_rate;
+                                            buffer_write.particles[pid_b][i_target].y +=
+                                                delta_vector.y * constants.collision_push_rate;
+                                        }
+                                    }
+                                }
+                                None => {
+                                    println!("cannot find pb");
+                                }
+                            }
+                        }
+                    }
+                }
+                for ((pid_a, pid_b), crdlink) in links_to_create {
+                    create_link(&mut data, pid_a, pid_b, crdlink);
+                }
+                for pid in particles_to_deactivate {
+                    deactivate_particle(&mut data, pid);
+                }
+                for p in particles_to_create {
+                    match activate_particle(&mut data, p.pdid) {
+                        Some(pid) => {
+                            for i in 0..=1 {
+                                {
+                                    let mut buffer_write = data.gpu_buffer.write().unwrap();
+                                    buffer_write.particles[pid][i].x = p.x;
+                                    buffer_write.particles[pid][i].y = p.y;
+                                    buffer_write.particles[pid][i].x_before = p.x_before;
+                                    buffer_write.particles[pid][i].y_before = p.y_before;
+                                }
+                                update_grid_coord(&mut data, pid);
+                            }
+                        }
+                        None => {}
+                    }
+                }
+                match SystemTime::now().duration_since(start_time_collision_response) {
+                    Ok(t) => durations_collision_response.push(t.as_micros()),
+                    Err(_) => println!("error getting elapsed time"),
+                }
+                //
                 tick += 1;
+                //
+                for _ in configuration.durations_length..durations.len() {
+                    durations.remove(0);
+                }
+                let average_duration = mean_u128(&durations);
+                let average_duration_fix_nan = {
+                    for _ in configuration.durations_length..durations_fix_nan.len() {
+                        durations_fix_nan.remove(0);
+                    }
+                    mean_u128(&durations_fix_nan)
+                };
+                for _ in configuration.durations_length..durations_gpu_compute.len() {
+                    durations_gpu_compute.remove(0);
+                }
+                let average_duration_gpu_compute = mean_u128(&durations_gpu_compute);
+                for _ in configuration.durations_length..durations_collision_grid.len() {
+                    durations_collision_grid.remove(0);
+                }
+                let average_duration_collision_grid = mean_u128(&durations_collision_grid);
+                for _ in configuration.durations_length..durations_collision_response.len() {
+                    durations_collision_response.remove(0);
+                }
+                let average_duration_collision_response = mean_u128(&durations_collision_response);
+                for _ in configuration.durations_length..durations_client_data.len() {
+                    durations_client_data.remove(0);
+                }
+                let average_duration_client_data = mean_u128(&durations_client_data);
+                //
                 // write client data
+                //
+                let start_time_client_data = SystemTime::now();
                 if configuration.update_client_data {
-                    let buffer_read = buffer.read().unwrap();
+                    let buffer_read = data.gpu_buffer.read().unwrap();
                     let mut particles_client: Vec<ParticleClientData> = Vec::new();
-                    for p in buffer_read.particles.iter() {
-                        if p[i_target].is_active == 1 || configuration.serialize_unactive_particles
-                        {
+                    let mut total_momentum = Vec2 { x: 0.0, y: 0.0 };
+                    let mut absolute_momentum = Vec2 { x: 0.0, y: 0.0 };
+                    let mut kinetic_energy = 0.0;
+                    for (pid, p) in data.active_particles.iter() {
+                        let p_gpu = buffer_read.particles[*pid];
+                        particles_client.push(ParticleClientData {
+                            x: p_gpu[i_target].x,
+                            y: p_gpu[i_target].y,
+                            d: p_gpu[i_target].d,
+                            a: p_gpu[i_target].is_active == 1,
+                            pdid: p.pdid,
+                        });
+                        total_momentum.x += p_gpu[i_target].momentum_x;
+                        total_momentum.y += p_gpu[i_target].momentum_y;
+                        absolute_momentum.x += p_gpu[i_target].momentum_x.abs();
+                        absolute_momentum.y += p_gpu[i_target].momentum_y.abs();
+                        kinetic_energy += p_gpu[i_target].kinetic_energy;
+                    }
+                    if configuration.serialize_unactive_particles {
+                        for pid in &data.inactive_particles {
+                            let p_gpu = buffer_read.particles[*pid];
                             particles_client.push(ParticleClientData {
-                                x: p[i_target].x,
-                                y: p[i_target].y,
-                                d: p[i_target].d,
-                                a: p[i_target].is_active == 1,
+                                x: p_gpu[i_target].x,
+                                y: p_gpu[i_target].y,
+                                d: p_gpu[i_target].d,
+                                a: p_gpu[i_target].is_active == 1,
+                                // todo: use Nan for inactive particle
+                                // inactive particles can't have a pdid
+                                pdid: 0,
                             });
                         }
                     }
@@ -304,147 +543,61 @@ fn test_particles() {
                         constants: constants,
                         particles: particles_client,
                         tick: tick,
+                        momentum: total_momentum,
+                        kinetic_energy: kinetic_energy,
+                        absolute_momentum: absolute_momentum,
+                        average_duration: average_duration,
+                        particle_definitions: data.particle_definitions.clone(),
+                        pdid_to_string: data.pdid_to_string.clone(),
                     };
                     *(client_data_lock_clone.write().unwrap()) =
                         serde_json::to_string(&client_data).unwrap().to_string();
                 }
-                durations.push(
-                    SystemTime::now()
-                        .duration_since(start_time)
-                        .unwrap()
-                        .as_millis(),
-                );
-                for _ in 100..durations.len() {
-                    durations.remove(0);
+                match SystemTime::now().duration_since(start_time_client_data) {
+                    Ok(t) => durations_client_data.push(t.as_micros()),
+                    Err(_) => println!("error getting elapsed time"),
                 }
-                if tick % 100 == 0 {
+                //
+                // engine logs
+                //
+                if configuration.display_engine_logs
+                    && tick % configuration.engine_logs_refresh == 0
+                {
                     println!("#{}", tick);
+                    println!("  active_particles: {}", data.active_particles.len());
+                    println!("  links:            {}", data.links.len());
+                    println!("  duration");
+                    println!("    fix nan:            {}μs", average_duration_fix_nan);
                     println!(
-                        "  particles[0].x_: {}",
-                        buffer.read().unwrap().particles[0][i_target].x_before
+                        "    collision grid:     {}μs",
+                        average_duration_collision_grid
                     );
+                    println!("    gpu compute:        {}μs", average_duration_gpu_compute);
                     println!(
-                        "  particles[0].x:  {}",
-                        buffer.read().unwrap().particles[0][i_target].x
+                        "    collision response: {}μs",
+                        average_duration_collision_response
                     );
-                    let average_duration = mean_u128(&durations);
-                    println!("  average_duration:       {}ms", average_duration);
+                    println!("    client data:        {}μs", average_duration_client_data);
+                    let sum = average_duration_fix_nan
+                        + average_duration_collision_grid
+                        + average_duration_gpu_compute
+                        + average_duration_collision_response
+                        + average_duration_client_data;
+                    if sum < average_duration {
+                        println!("    other:              {}μs", average_duration - sum);
+                    } else {
+                        println!("    other:              0μs");
+                    }
+                    println!("    total:              {}μs", average_duration);
+                }
+                match SystemTime::now().duration_since(start_time) {
+                    Ok(t) => durations.push(t.as_micros()),
+                    Err(_) => println!("error getting elapsed time"),
                 }
             }
         })
         .unwrap();
     handler.join().unwrap();
-}
-fn main() {
-    test_particles();
-}
-fn get_random_particles(
-    configuration: &Configuration,
-    count: usize,
-    max_speed_per_sec: f32,
-) -> Vec<[Particle; 2]> {
-    let mut particles = Vec::new();
-    let mut rng = rand::thread_rng();
-    let constants = configuration.constants;
-    for i in 0..count {
-        let x = rng.gen::<f32>() * constants.width;
-        let y = rng.gen::<f32>() * constants.height;
-        let max_speed_per_tick = max_speed_per_sec * constants.delta_time_s;
-        let particle = Particle {
-            x: x,
-            y: y,
-            x_before: x + rng.gen::<f32>() * max_speed_per_tick - max_speed_per_tick * 0.5,
-            y_before: y + rng.gen::<f32>() * max_speed_per_tick - max_speed_per_tick * 0.5,
-            grid_x: ((x / constants.width * constants.grid_size as f32).abs() as u32)
-                .max(0)
-                .min(constants.grid_size - 1),
-            grid_y: ((y / constants.height * constants.grid_size as f32).abs() as u32)
-                .max(0)
-                .min(constants.grid_size - 1),
-            collisions_count: 0,
-            d: constants.default_diameter,
-            mass: constants.default_mass,
-            is_active: if i < configuration.initial_particle_count {
-                1
-            } else {
-                0
-            },
-        };
-        particles.push([particle, particle]);
-    }
-    return particles;
-}
-fn handle_websocket(
-    client_data_lock: std::sync::Arc<std::sync::RwLock<String>>,
-    configuration: Configuration,
-) {
-    let address = configuration.address;
-    let port = configuration.port;
-    let host = format!("{}:{}", address, port);
-    let server = TcpListener::bind(host.to_owned()).unwrap();
-    println!("server started");
-    for stream in server.incoming() {
-        println!("incoming");
-        let client_data_lock_clone = Arc::clone(&client_data_lock);
-        thread::spawn(move || {
-            let mut websocket = accept(stream.unwrap()).unwrap();
-            let message = websocket.read_message().unwrap();
-            println!("message: {}", message);
-            if message == tungstenite::Message::Text("server_to_client".to_string()) {
-                loop {
-                    {
-                        let message_write = tungstenite::Message::Text(
-                            client_data_lock_clone.read().unwrap().to_string(),
-                        );
-                        match websocket.write_message(message_write) {
-                            Ok(_) => {
-                                // Do nothing
-                            }
-                            Err(error) => {
-                                println!("error writer socket: {}", error);
-                                break;
-                            }
-                        }
-                    }
-                    thread::sleep(Duration::from_millis(10));
-                }
-            } else if message == tungstenite::Message::Text("latency_checker".to_string()) {
-                loop {
-                    match websocket.read_message() {
-                        Ok(message) => {
-                            if message == tungstenite::Message::Text("check".to_string()) {
-                                websocket
-                                    .write_message(tungstenite::Message::Text(
-                                        "check_back".to_string(),
-                                    ))
-                                    .unwrap();
-                            } else {
-                                println!("message not handled: {}", message);
-                            }
-                        }
-                        Err(error) => {
-                            println!("error: {}", error);
-                            break;
-                        }
-                    }
-                }
-            } else if message == tungstenite::Message::Text("writer".to_string()) {
-                loop {
-                    match websocket.read_message() {
-                        Ok(message) => {
-                            println!("message not handled: {}", message);
-                        }
-                        Err(error) => {
-                            println!("error: {}", error);
-                            break;
-                        }
-                    }
-                }
-            } else {
-                println!("starting message not handled: {}", message);
-            }
-        });
-    }
 }
 fn mean_u128(v: &Vec<u128>) -> u128 {
     let sum: u128 = Iterator::sum(v.iter());
@@ -454,3 +607,51 @@ fn mean_u128(v: &Vec<u128>) -> u128 {
         0
     }
 }
+
+/*
+let x = (pas.x + pbs.x) * 0.5;
+let y = (pas.y + pbs.y) * 0.5;
+let dv_a = Vector::new_2(
+    pas.x_before,
+    pas.y_before,
+    pas.x,
+    pas.y,
+);
+let dv_b = Vector::new_2(
+    pbs.x_before,
+    pbs.y_before,
+    pbs.x,
+    pbs.y,
+);
+let mut dv = dv_a.clone();
+dv.remove(&dv_b);
+let relative_speed = dv.length();
+let a_to_b =
+    Vector::new_2(pas.x, pas.y, pbs.x, pbs.y);
+let normal = a_to_b.get_normal().normalized();
+let x0 = x + normal.x * 0.5;
+let y0 = y + normal.y * 0.5;
+let x1 = x - normal.x * 0.5;
+let y1 = y - normal.y * 0.5;
+particles_to_create.push(
+    ParticleConfigurationVerlet {
+        pdid: crdi.pdids[0],
+        x: x0,
+        y: y0,
+        x_before: x0
+            - normal.x * relative_speed * 0.5,
+        y_before: y0
+            - normal.y * relative_speed * 0.5,
+    },
+);
+particles_to_create.push(
+    ParticleConfigurationVerlet {
+        pdid: crdi.pdids[1],
+        x: x1,
+        y: y1,
+        x_before: x1
+            + normal.x * relative_speed * 0.5,
+        y_before: y1
+            + normal.y * relative_speed * 0.5,
+    },
+);*/
