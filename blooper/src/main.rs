@@ -53,12 +53,14 @@ const MAX_PARTICLE_DEFINITIONS: usize = 64;
 //#[allow(dead_code)]
 //#[repr(align(1))]
 pub struct GpuParticle {
+    pub pdid: u32,
+    pub link_count: u32,
+    pub collision_pids: [u32; MAX_COLLISION_PER_PARTICLE],
+    pub linked_pids: [u32; MAX_LINK_PER_PARTICLE],
     pub velocity_x: f32,
     pub velocity_y: f32,
     pub momentum_x: f32,
     pub momentum_y: f32,
-    pub linked_pids: [u32; MAX_LINK_PER_PARTICLE],
-    pub link_count: u32,
     pub is_active: u32,
     pub d: f32,
     pub x: f32,
@@ -70,7 +72,6 @@ pub struct GpuParticle {
     pub grid_x: u32,
     pub grid_y: u32,
     pub collisions_count: u32,
-    pub collision_pids: [u32; MAX_COLLISION_PER_PARTICLE],
     pub padder: [u32; PADDER_COUNT],
     //pub pdid: u32,
 }

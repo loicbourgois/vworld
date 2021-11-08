@@ -89,6 +89,7 @@ pub fn activate_particle(data: &mut Data, pdid: pdid) -> Option<pid> {
                 velocity_y: 0.0,
                 momentum_x: 0.0,
                 momentum_y: 0.0,
+                pdid: pdid as u32,
                 kinetic_energy: 0.0,
                 padder: [0; PADDER_COUNT],
                 //pdid: pdid as u32,
@@ -288,6 +289,7 @@ fn get_random_particles(
             link_count: 0,
             linked_pids: [0; MAX_LINK_PER_PARTICLE],
             //pdid: 0,
+            pdid: 0,
         };
         gpu_particles.push([gpu_particle, gpu_particle]);
     }

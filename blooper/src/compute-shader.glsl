@@ -16,12 +16,14 @@ layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 #define pbs_xy vec2(pbs.x, pbs.y)
 #define consts push_constants
 struct Particle {
+  uint pdid;
+  uint link_count;
+  uint collision_pids [max_collision_per_particle];
+  uint linked_pids [MAX_LINK_PER_PARTICLE];
   float velocity_x;
   float velocity_y;
   float momentum_x;
   float momentum_y;
-  uint linked_pids [MAX_LINK_PER_PARTICLE];
-  uint link_count;
   uint is_active;
   float d;
   float x;
@@ -33,7 +35,6 @@ struct Particle {
   uint grid_x;
   uint grid_y;
   uint collisions_count;
-  uint collision_pids [max_collision_per_particle];
   uint padder [PADDER_COUNT];
   //uint pdid;
 };
@@ -112,11 +113,14 @@ void main() {
     }
   }
   // Compute link
+  vec2 direction = vec2(0.0, 0.0);
   for (uint i=0 ; i < pas.link_count ; i+=1) {
     uint pid_b = pas.linked_pids[i];
     float l = (pas.d + pbs.d) * 0.5;
     float dl = l - distance(pas_xy, pbs_xy);
-    vec2 dv = normalize(delta_vector(pas_xy, pbs_xy)) * dl;
+    vec2 ndv = normalize(delta_vector(pas_xy, pbs_xy));
+    direction += ndv;
+    vec2 dv = ndv * dl;
     float strength = 1.0;
     float damping = 0.5;
     pat.x -= dv.x * strength * consts.delta_time_s;
@@ -124,13 +128,19 @@ void main() {
     pat.x_before -= dv.x * strength * damping * consts.delta_time_s;
     pat.y_before -= dv.y * strength * damping * consts.delta_time_s;
   }
+  // Thrust
+  vec2 thrust_force = vec2(0.0, 0.0);
+  if (direction.x * direction.y != 0.0) {
+    direction = normalize(direction);
+    thrust_force = direction * data.particle_definitions[pas.pdid].thrust * consts.delta_time_s;
+  }
   // Compute gravity force
   vec2 gravity_force = vec2(
     consts.gravity.x * pas.mass * consts.delta_time_s,
     consts.gravity.y * pas.mass * consts.delta_time_s
   );
   // Move target
-  vec2 acceleration = gravity_force / pas.mass;
+  vec2 acceleration = (gravity_force+thrust_force) / pas.mass;
   pat.x += acceleration.x * consts.delta_time_s * consts.delta_time_s;
   pat.y += acceleration.y * consts.delta_time_s * consts.delta_time_s;
   float move_ratio = 1.0;
