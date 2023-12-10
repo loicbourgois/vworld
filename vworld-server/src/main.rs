@@ -410,7 +410,7 @@ fn main() {
                         x: f64,
                         y: f64,
                         dna: Vec<f64>,
-                    };
+                    }
                     let mut eggs_to_hatch = Vec::new();
                     for (puuid, particle) in  chunk.particles.iter() {
                         match particle.type_ {

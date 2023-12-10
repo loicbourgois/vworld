@@ -11,6 +11,7 @@
     "value": 1
   },
   "constants": {
+    "turbo_max": 2,
     "min_duplication_coefficient": 0.55,
     "use_distance_traveled_as_fitness_function": false,
     "display_simulation_logs": false,
@@ -54,7 +55,10 @@
     "mouth_energy_eating_rate_per_second": 1.0,
     "mouth_energy_consumption_rate_per_second": 0.00001,
     "enable_auto_link_6": true,
-    "destroy_unstable_entities": true
+    "hatch_egg_age_ticks": 1000,
+    "lay_egg_rate": 0.5,
+    "destroy_unstable_entities": true,
+    "same_position_as_parent": false
   },
   "servers": {
     "0,0": {

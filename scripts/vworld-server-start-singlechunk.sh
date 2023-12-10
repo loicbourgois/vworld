@@ -1,10 +1,12 @@
 #!/bin/sh
+set -e
 pwd_=$(pwd)
 if [ "$mode" == "release" ]; then
     release="--release"
 else
     release=""
 fi
+vworld_root_folder="$HOME/github.com/loicbourgois/vworld"
 cd $vworld_root_folder/vworld-server
 cargo check || { cd $pwd_ ; exit 1; }
 configuration_folder="$vworld_root_folder/configurations/$configuration_name"

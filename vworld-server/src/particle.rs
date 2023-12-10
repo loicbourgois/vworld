@@ -361,7 +361,7 @@ pub fn add_particle(chunk: &mut Chunk, euuid: &euuid, puuid_pair: [puuid; 2], mu
             puuid_a: puuid,
             puuid_b: puuid,
             puuid_c: puuid
-        };
+        }
         let mut data = Vec::new();
         let entity = chunk.entities.get(euuid).unwrap();
         for puuid in &entity.puuids {
