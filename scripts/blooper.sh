@@ -1,3 +1,4 @@
+set -e
 pwd_=$(pwd)
 cd $vworld_root_folder/blooper
 cargo fmt --verbose

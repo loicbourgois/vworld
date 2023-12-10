@@ -114,6 +114,7 @@ const log = (message) => {
   const textarea_logs = document.getElementById('logs')
   textarea_logs.value += message + '\n';
   textarea_logs.scrollTop = textarea_logs.scrollHeight;
+  console.log(message)
 }
 const setup_socket_pair = (socket_pair) => {
   socket_pair.reader.addEventListener('open', function (event) {
